@@ -98,6 +98,7 @@ jobs:
       - run: cargo build
       - run: cargo test --lib
       - run: cargo test --example crd_api crd_reflector
+      - run: cargo test --example configmapgen_controller
       - run: cargo test -j4
       - run: cd kube && cargo test --lib --no-default-features --features=rustls-tls
       - save_cache:
