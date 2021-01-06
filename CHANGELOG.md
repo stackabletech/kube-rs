@@ -1,3 +1,7 @@
+0.46.1 / 2021-01-06
+===================
+  * bug: fix `Runner` (and thus `Controller` and `applier`) not waking correctly when starting new tasks - #375
+
 0.46.0 / 2021-01-02
 ===================
   * feat: `kube` now has __optional__ websocket support with `async_tungstenite` under `ws` and `ws-*-tls` features #360
