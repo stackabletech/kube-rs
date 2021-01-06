@@ -95,7 +95,7 @@ mod tests {
     use tokio::{
         runtime::Handle,
         task::yield_now,
-        time::{pause, delay_for, timeout, Instant},
+        time::{delay_for, pause, timeout, Instant},
     };
 
     #[tokio::test]
