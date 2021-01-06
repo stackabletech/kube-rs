@@ -139,7 +139,7 @@ mod tests {
 
     // Test MUST be single-threaded to be consistent, since it concerns a relatively messy
     // interplay between multiple tasks
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test(core_threads = 1)]
     async fn runner_should_wake_when_scheduling_messages() {
         // pause();
         let (mut sched_tx, sched_rx) = mpsc::unbounded();
