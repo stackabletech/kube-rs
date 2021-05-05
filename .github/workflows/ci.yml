@@ -106,9 +106,8 @@ jobs:
       - name: Compile dapp
         run: |
           docker run --rm -t \
-              --mount type=bind,source=${{ github.workspace }},target=/volume \
-              --mount type=bind,source=~/.cargo/registry,target=/root/.cargo/registry \
-              --mount type=bind,source=~/.cargo/git,target=/root/.cargo/git \
+              --mount type=bind,source=$(pwd),target=/volume \
+              --mount type=bind,source=$HOME/.cargo,target=/root/.cargo \
               clux/muslrust:latest \
               cargo build -p tests --release
 
