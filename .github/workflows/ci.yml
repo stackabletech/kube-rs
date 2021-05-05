@@ -28,51 +28,62 @@ jobs:
       # - https://github.com/actions/cache/issues/403
       - uses: Swatinem/rust-cache@v1
 
-      - uses: actions-rs/cargo@v1
+      - name: Build
+        uses: actions-rs/cargo@v1
         with:
           command: build
-      - uses: actions-rs/cargo@v1
+      - name: Test kube_runtime
+        uses: actions-rs/cargo@v1
         with:
           command: test
           args: -p kube-runtime
-      - uses: actions-rs/cargo@v1
+      - name: Test kube
+        uses: actions-rs/cargo@v1
         with:
           command: test
           args: -p kube
-      - uses: actions-rs/cargo@v1
+      - name: Test kube_derive
+        uses: actions-rs/cargo@v1
         with:
           command: test
           args: -p kube-derive
       # REVIEW This runs tests again
-      - uses: actions-rs/cargo@v1
+      - name: Test all
+        uses: actions-rs/cargo@v1
         with:
           command: test
           args: --lib --all -j4
-      - uses: actions-rs/cargo@v1
+      - name: Test docs
+        uses: actions-rs/cargo@v1
         with:
           command: test
           args: --doc --all -j4
 
       # kube features
-      - uses: actions-rs/cargo@v1
+      - name: Test kube with features native-tls,ws,oauth
+        uses: actions-rs/cargo@v1
         with:
           command: test
           args: --manifest-path kube/Cargo.toml --lib --no-default-features --features=native-tls,ws,oauth
-      - uses: actions-rs/cargo@v1
+      - name: Test kube with features rustls-tls,ws,oauth
+        uses: actions-rs/cargo@v1
         with:
           command: test
           args: --manifest-path kube/Cargo.toml --lib --no-default-features --features=rustls-tls,ws,oauth
 
       # examples
-      - uses: actions-rs/cargo@v1
+      - name: Test examples
+        uses: actions-rs/cargo@v1
         with:
           command: test
           args: -p examples -j4
-      - uses: actions-rs/cargo@v1
+      - name: Build examples
+        uses: actions-rs/cargo@v1
         with:
           command: build
           args: --manifest-path examples/Cargo.toml
-      - uses: actions-rs/cargo@v1
+      - name: Test crd_derive_no_schema example
+        uses: actions-rs/cargo@v1
         with:
           command: test
           args: --manifest-path examples/Cargo.toml --example crd_derive_no_schema --no-default-features --features=native-tls
