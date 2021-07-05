@@ -1,11 +1,11 @@
 # Release process:
-# 0. (optional) cargo release minor --dry-run ; verify that all crates are bumped and versions in-line before proceeding
-# 1. (optional) git reset --hard
-# 2. PUBLISH_GRACE_SLEEP=30 cargo release minor
-# 3a. await publishing - failures can happen due to https://github.com/sunng87/cargo-release/issues/224 (but should not with sufficient grace-sleep)
-# 3b. if failures from 3a; (resume publishing manually, cd into next dir, cargo publish, wait, continue for next in line)
-# 4. git amend consolidated commit and add the unified version https://github.com/sunng87/cargo-release/issues/222
-# 5. ./postrelease.sh
+# 0a. (optional) cargo release minor --dry-run ; verify that all crates are bumped and versions in-line before proceeding
+# 0b. (optional) git reset --hard ; undo dry-run changes from prerelease
+# 1. PUBLISH_GRACE_SLEEP=30 cargo release minor
+# 2a. await publishing - failures can happen due to https://github.com/sunng87/cargo-release/issues/224 (but should not with sufficient grace-sleep)
+# 2b. if failures from 2a; (resume publishing manually, cd into next dir, cargo publish, wait, continue for next in line)
+# 3. git amend consolidated commit and add the unified version https://github.com/sunng87/cargo-release/issues/222
+# 4. ./postrelease.sh
 
 # Reference
 # https://github.com/sunng87/cargo-release/blob/master/docs/reference.md
@@ -14,7 +14,7 @@
 consolidate-commits = true
 no-dev-version = true # bumps happen right before release
 pre-release-hook = ["../prerelease.sh"]
-pre-release-commit-message = "release"
-# leave tagging to postrelease script (due to potential failures in 3 and 4)
+pre-release-commit-message = "release {{version}}"
+# leave tagging to postrelease script (due to potential failures in 2)
 disable-push = true
 disable-tag = true
