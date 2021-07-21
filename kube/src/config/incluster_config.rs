@@ -20,7 +20,12 @@ pub fn kube_server() -> Option<String> {
 }
 
 pub fn kube_dns() -> http::Uri {
-    http::Uri::builder().scheme("https").authority(SERVICE_DNS).build().unwrap()
+    http::Uri::builder()
+        .scheme("https")
+        .authority(SERVICE_DNS)
+        .path_and_query("/")
+        .build()
+        .unwrap()
 }
 
 fn kube_host() -> Option<String> {
@@ -51,6 +56,7 @@ fn test_kube_host() {
     let expected = "fake.io";
     env::set_var(SERVICE_HOSTENV, expected);
     assert_eq!(kube_host().unwrap(), expected);
+    kube_dns(); // verify kube_dns always unwraps
 }
 
 #[test]
