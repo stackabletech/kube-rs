@@ -2,8 +2,12 @@ use std::env;
 
 use crate::{config::utils, Result};
 
+// Old method to connect to kubernetes
 pub const SERVICE_HOSTENV: &str = "KUBERNETES_SERVICE_HOST";
 pub const SERVICE_PORTENV: &str = "KUBERNETES_SERVICE_PORT";
+// New method to connect to kubernetes
+pub const SERVICE_DNS: &str = "kubernetes.default.svc";
+// Mounted credential files
 const SERVICE_TOKENFILE: &str = "/var/run/secrets/kubernetes.io/serviceaccount/token";
 const SERVICE_CERTFILE: &str = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
 const SERVICE_DEFAULT_NS: &str = "/var/run/secrets/kubernetes.io/serviceaccount/namespace";
@@ -13,6 +17,10 @@ pub fn kube_server() -> Option<String> {
     let host = kube_host()?;
     let port = kube_port()?;
     Some(format!("https://{}:{}", host, port))
+}
+
+pub fn kube_dns() -> http::Uri {
+    http::Uri::builder().scheme("https").authority(SERVICE_DNS).build().unwrap()
 }
 
 fn kube_host() -> Option<String> {

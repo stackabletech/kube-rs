@@ -91,11 +91,12 @@ impl Config {
     /// and relies on you having the service account's token mounted,
     /// as well as having given the service account rbac access to do what you need.
     pub fn from_cluster_env() -> Result<Self> {
-        let cluster_url = incluster_config::kube_server().ok_or(ConfigError::MissingInClusterVariables {
-            hostenv: incluster_config::SERVICE_HOSTENV,
-            portenv: incluster_config::SERVICE_PORTENV,
-        })?;
-        let cluster_url = cluster_url.parse::<http::Uri>()?;
+        let cluster_url = incluster_config::kube_dns();
+        //let cluster_url = incluster_config::kube_server().ok_or(ConfigError::MissingInClusterVariables {
+        //    hostenv: incluster_config::SERVICE_HOSTENV,
+        //    portenv: incluster_config::SERVICE_PORTENV,
+        //})?;
+        //let cluster_url = cluster_url.parse::<http::Uri>()?;
 
         let default_namespace = incluster_config::load_default_ns()
             .map_err(Box::new)
