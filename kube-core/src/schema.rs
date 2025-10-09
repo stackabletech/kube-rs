@@ -8,7 +8,10 @@
 use schemars::{transform::Transform, JsonSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
+use std::{
+    collections::{btree_map::Entry, BTreeMap, BTreeSet},
+    ops::{Deref, Not},
+};
 
 /// schemars [`Visitor`] that rewrites a [`Schema`] to conform to Kubernetes' "structural schema" rules
 ///
@@ -246,10 +249,114 @@ enum SingleOrVec<T> {
     Vec(Vec<T>),
 }
 
+#[cfg(test)]
+mod test {
+    use assert_json_diff::assert_json_eq;
+    use schemars::{json_schema, schema_for, schema_for_value, JsonSchema};
+    use serde::{de::Expected, Deserialize, Serialize};
+    use serde_json::json;
+
+    /// A very simple enum with empty variants
+    #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+    enum NormalEnum {
+        /// First variant
+        A,
+        /// Second variant
+        B,
+
+        // No doc-comments on these variants
+        C,
+        D,
+    }
+
+    #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+    enum B {}
+
+    #[test]
+    fn hoisting_a_schema() {
+        let incoming = json_schema!(
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "description": "A very simple enum with empty variants",
+                "oneOf": [
+                  {
+                    "enum": [
+                      "C",
+                      "D"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "const": "A",
+                    "description": "First variant",
+                    "type": "string"
+                  },
+                  {
+                    "const": "B",
+                    "description": "Second variant",
+                    "type": "string"
+                  }
+                ],
+                "title": "NormalEnum"
+              }
+        );
+
+        // Initial check that the text schema above is correct for NormalEnum
+        assert_json_eq!(schema_for!(NormalEnum), incoming);
+
+        let expected = json_schema!(
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "description": "A very simple enum with empty variants",
+                "type": "string",
+                "enum": [
+                      "C",
+                      "D",
+                      "A",
+                      "B"
+                ],
+                "title": "NormalEnum"
+              }
+        );
+
+        // let actual = hoist
+
+        // assert_json_eq!(expected, actual);
+    }
+}
+
+fn hoist_one_of_enum(incoming: Schema) -> Schema {
+    let Schema::Object(SchemaObject {
+        subschemas: Some(subschemas),
+        ..
+    }) = &incoming
+    else {
+        return incoming;
+    };
+
+    let SubschemaValidation {
+        one_of: Some(one_of), ..
+    } = subschemas.deref()
+    else {
+        return incoming;
+    };
+
+    if one_of.is_empty() {
+        return incoming;
+    }
+
+    // now the meat. Need to get the oneOf variants up into `enum`
+    // panic if the types differ
+
+
+    todo!("finish it")
+}
+
 impl Transform for StructuralSchemaRewriter {
     fn transform(&mut self, transform_schema: &mut schemars::Schema) {
         schemars::transform::transform_subschemas(self, transform_schema);
 
+        // TODO (@NickLarsenNZ): Replace with conversion function
         let mut schema: SchemaObject = match serde_json::from_value(transform_schema.clone().to_value()).ok()
         {
             Some(schema) => schema,
