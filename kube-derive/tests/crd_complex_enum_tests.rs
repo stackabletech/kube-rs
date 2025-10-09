@@ -180,22 +180,13 @@ fn optional_enum() {
                           "spec": {
                             "properties": {
                               "foo": {
-                                "anyOf": [
-                                  {
-                                    "description": "A very simple enum with empty variants",
-                                    "enum": [
-                                      "A",
-                                      "B"
-                                    ],
-                                    "type": "string"
-                                  },
-                                  {
-                                    "enum": [
-                                      null
-                                    ],
-                                    "nullable": true
-                                  }
-                                ]
+                                "description": "A very simple enum with empty variants",
+                                "enum": [
+                                  "A",
+                                  "B"
+                                ],
+                                "nullable": true,
+                                "type": "string"
                               }
                             },
                             "type": "object"
@@ -217,13 +208,6 @@ fn optional_enum() {
             }
         )
     );
-
-    // The CustomResourceDefinition "optionalenumtests.clux.dev" is invalid:
-    // * spec.validation.openAPIV3Schema.properties[spec].properties[foo].anyOf[0].description: Forbidden: must be empty to be structural
-    // * spec.validation.openAPIV3Schema.properties[spec].properties[foo].anyOf[0].type: Forbidden: must be empty to be structural
-    // * spec.validation.openAPIV3Schema.properties[spec].properties[foo].anyOf[1].nullable: Forbidden: must be false to be structural
-    // * spec.validation.openAPIV3Schema.properties[spec].properties[foo].type: Required value: must not be empty for specified object fields
-    panic!("This CRD is currently not accepted by Kubernetes!");
 }
 
 #[test]
@@ -269,10 +253,7 @@ fn untagged_enum() {
                                       "two"
                                     ]
                                   },
-                                  {
-                                    "description": "Used in case no fields are present",
-                                    "type": "object"
-                                  }
+                                  {}
                                 ],
                                 "description": "An untagged enum with a nested enum inside",
                                 "properties": {
@@ -314,11 +295,6 @@ fn untagged_enum() {
             }
         )
     );
-
-    // The CustomResourceDefinition "untaggedenumtests.clux.dev" is invalid:
-    // * spec.validation.openAPIV3Schema.properties[spec].properties[foo].anyOf[2].description: Forbidden: must be empty to be structural
-    // * spec.validation.openAPIV3Schema.properties[spec].properties[foo].anyOf[2].type: Forbidden: must be empty to be structural
-    panic!("This CRD is currently not accepted by Kubernetes!");
 }
 
 #[test]
@@ -355,30 +331,19 @@ fn optional_untagged_enum() {
                               "foo": {
                                 "anyOf": [
                                   {
-                                    "anyOf": [
-                                      {
-                                        "required": [
-                                          "one"
-                                        ]
-                                      },
-                                      {
-                                        "required": [
-                                          "two"
-                                        ]
-                                      },
-                                      {
-                                        "description": "Used in case no fields are present",
-                                        "type": "object"
-                                      }
+                                    "required": [
+                                      "one"
                                     ]
                                   },
                                   {
-                                    "enum": [
-                                      null
-                                    ],
-                                    "nullable": true
-                                  }
+                                    "required": [
+                                      "two"
+                                    ]
+                                  },
+                                  {}
                                 ],
+                                "description": "An untagged enum with a nested enum inside",
+                                "nullable": true,
                                 "properties": {
                                   "one": {
                                     "description": "Used in case the `one` field of tpye [`u32`] is present",
@@ -415,12 +380,6 @@ fn optional_untagged_enum() {
             }
         )
     );
-
-    // The CustomResourceDefinition "optionaluntaggedenumtests.clux.dev" is invalid:
-    // * spec.validation.openAPIV3Schema.properties[spec].properties[foo].anyOf[0].anyOf[2].description: Forbidden: must be empty to be structural
-    // * spec.validation.openAPIV3Schema.properties[spec].properties[foo].anyOf[0].anyOf[2].type: Forbidden: must be empty to be structural
-    // * spec.validation.openAPIV3Schema.properties[spec].properties[foo].anyOf[1].nullable: Forbidden: must be false to be structural
-    panic!("This CRD is currently not accepted by Kubernetes!");
 }
 
 #[test]
@@ -466,12 +425,9 @@ fn flattened_untagged_enum() {
                                       "two"
                                     ]
                                   },
-                                  {
-                                    "description": "Used in case no fields are present",
-                                    "type": "object"
-                                  }
+                                  {}
                                 ],
-                                "description": "Put a [`UntaggedEnum`] behind `#[serde(flatten)]`,",
+                                "description": "Put a [`UntaggedEnum`] behind `#[serde(flatten)]`",
                                 "properties": {
                                   "one": {
                                     "description": "Used in case the `one` field of tpye [`u32`] is present",
@@ -511,9 +467,4 @@ fn flattened_untagged_enum() {
             }
         )
     );
-
-    // The CustomResourceDefinition "flatteneduntaggedenumtests.clux.dev" is invalid:
-    // * spec.validation.openAPIV3Schema.properties[spec].properties[foo].anyOf[2].description: Forbidden: must be empty to be structural
-    // * spec.validation.openAPIV3Schema.properties[spec].properties[foo].anyOf[2].type: Forbidden: must be empty to be structural
-    panic!("This CRD is currently not accepted by Kubernetes!");
 }
