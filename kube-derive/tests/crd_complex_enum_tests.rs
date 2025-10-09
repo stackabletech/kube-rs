@@ -12,6 +12,10 @@ enum NormalEnum {
     A,
     /// Second variant
     B,
+
+    // No doc-comments on these variants
+    C,
+    D,
 }
 
 /// An untagged enum with a nested enum inside
@@ -89,61 +93,63 @@ fn normal_enum() {
     assert_json_eq!(
         NormalEnumTest::crd(),
         json!(
-            {
-              "apiVersion": "apiextensions.k8s.io/v1",
-              "kind": "CustomResourceDefinition",
-              "metadata": {
-                "name": "normalenumtests.clux.dev"
+          {
+            "apiVersion": "apiextensions.k8s.io/v1",
+            "kind": "CustomResourceDefinition",
+            "metadata": {
+              "name": "normalenumtests.clux.dev"
+            },
+            "spec": {
+              "group": "clux.dev",
+              "names": {
+                "categories": [],
+                "kind": "NormalEnumTest",
+                "plural": "normalenumtests",
+                "shortNames": [],
+                "singular": "normalenumtest"
               },
-              "spec": {
-                "group": "clux.dev",
-                "names": {
-                  "categories": [],
-                  "kind": "NormalEnumTest",
-                  "plural": "normalenumtests",
-                  "shortNames": [],
-                  "singular": "normalenumtest"
-                },
-                "scope": "Cluster",
-                "versions": [
-                  {
-                    "additionalPrinterColumns": [],
-                    "name": "v1",
-                    "schema": {
-                      "openAPIV3Schema": {
-                        "description": "Auto-generated derived type for NormalEnumTestSpec via `CustomResource`",
-                        "properties": {
-                          "spec": {
-                            "properties": {
-                              "foo": {
-                                "description": "A very simple enum with empty variants",
-                                "enum": [
-                                  "A",
-                                  "B"
-                                ],
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "foo"
-                            ],
-                            "type": "object"
-                          }
-                        },
-                        "required": [
-                          "spec"
-                        ],
-                        "title": "NormalEnumTest",
-                        "type": "object"
-                      }
-                    },
-                    "served": true,
-                    "storage": true,
-                    "subresources": {}
-                  }
-                ]
-              }
+              "scope": "Cluster",
+              "versions": [
+                {
+                  "additionalPrinterColumns": [],
+                  "name": "v1",
+                  "schema": {
+                    "openAPIV3Schema": {
+                      "description": "Auto-generated derived type for NormalEnumTestSpec via `CustomResource`",
+                      "properties": {
+                        "spec": {
+                          "properties": {
+                            "foo": {
+                              "description": "A very simple enum with empty variants",
+                              "enum": [
+                                "C",
+                                "D",
+                                "A",
+                                "B"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "foo"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "spec"
+                      ],
+                      "title": "NormalEnumTest",
+                      "type": "object"
+                    }
+                  },
+                  "served": true,
+                  "storage": true,
+                  "subresources": {}
+                }
+              ]
             }
+          }
         )
     );
 }
@@ -153,59 +159,61 @@ fn optional_enum() {
     assert_json_eq!(
         OptionalEnumTest::crd(),
         json!(
-            {
-              "apiVersion": "apiextensions.k8s.io/v1",
-              "kind": "CustomResourceDefinition",
-              "metadata": {
-                "name": "optionalenumtests.clux.dev"
+          {
+            "apiVersion": "apiextensions.k8s.io/v1",
+            "kind": "CustomResourceDefinition",
+            "metadata": {
+              "name": "optionalenumtests.clux.dev"
+            },
+            "spec": {
+              "group": "clux.dev",
+              "names": {
+                "categories": [],
+                "kind": "OptionalEnumTest",
+                "plural": "optionalenumtests",
+                "shortNames": [],
+                "singular": "optionalenumtest"
               },
-              "spec": {
-                "group": "clux.dev",
-                "names": {
-                  "categories": [],
-                  "kind": "OptionalEnumTest",
-                  "plural": "optionalenumtests",
-                  "shortNames": [],
-                  "singular": "optionalenumtest"
-                },
-                "scope": "Cluster",
-                "versions": [
-                  {
-                    "additionalPrinterColumns": [],
-                    "name": "v1",
-                    "schema": {
-                      "openAPIV3Schema": {
-                        "description": "Auto-generated derived type for OptionalEnumTestSpec via `CustomResource`",
-                        "properties": {
-                          "spec": {
-                            "properties": {
-                              "foo": {
-                                "description": "A very simple enum with empty variants",
-                                "enum": [
-                                  "A",
-                                  "B"
-                                ],
-                                "nullable": true,
-                                "type": "string"
-                              }
-                            },
-                            "type": "object"
-                          }
-                        },
-                        "required": [
-                          "spec"
-                        ],
-                        "title": "OptionalEnumTest",
-                        "type": "object"
-                      }
-                    },
-                    "served": true,
-                    "storage": true,
-                    "subresources": {}
-                  }
-                ]
-              }
+              "scope": "Cluster",
+              "versions": [
+                {
+                  "additionalPrinterColumns": [],
+                  "name": "v1",
+                  "schema": {
+                    "openAPIV3Schema": {
+                      "description": "Auto-generated derived type for OptionalEnumTestSpec via `CustomResource`",
+                      "properties": {
+                        "spec": {
+                          "properties": {
+                            "foo": {
+                              "description": "A very simple enum with empty variants",
+                              "enum": [
+                                "C",
+                                "D",
+                                "A",
+                                "B"
+                              ],
+                              "nullable": true,
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "spec"
+                      ],
+                      "title": "OptionalEnumTest",
+                      "type": "object"
+                    }
+                  },
+                  "served": true,
+                  "storage": true,
+                  "subresources": {}
+                }
+              ]
             }
+          }
         )
     );
 }
