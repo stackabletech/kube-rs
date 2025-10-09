@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
-    ops::{Deref, Not},
+
 };
 
 /// schemars [`Visitor`] that rewrites a [`Schema`] to conform to Kubernetes' "structural schema" rules
@@ -252,9 +252,10 @@ enum SingleOrVec<T> {
 #[cfg(test)]
 mod test {
     use assert_json_diff::assert_json_eq;
-    use schemars::{json_schema, schema_for, schema_for_value, JsonSchema};
-    use serde::{de::Expected, Deserialize, Serialize};
-    use serde_json::json;
+    use schemars::{json_schema, schema_for,  JsonSchema};
+    use serde::{Deserialize, Serialize};
+
+    use super::*;
 
     /// A very simple enum with empty variants
     #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
@@ -274,82 +275,103 @@ mod test {
 
     #[test]
     fn hoisting_a_schema() {
-        let incoming = json_schema!(
-            {
-                "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "description": "A very simple enum with empty variants",
-                "oneOf": [
-                  {
-                    "enum": [
-                      "C",
-                      "D"
+        let schemars_schema = schema_for!(NormalEnum);
+        let mut kube_schema: crate::schema::Schema =
+            schemars_schema_to_kube_schema(schemars_schema.clone()).unwrap();
+
+        assert_json_eq!(
+            schemars_schema,
+            json_schema!(
+                {
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "description": "A very simple enum with empty variants",
+                    "oneOf": [
+                      {
+                        "enum": [
+                          "C",
+                          "D"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "const": "A",
+                        "description": "First variant",
+                        "type": "string"
+                      },
+                      {
+                        "const": "B",
+                        "description": "Second variant",
+                        "type": "string"
+                      }
                     ],
-                    "type": "string"
-                  },
-                  {
-                    "const": "A",
-                    "description": "First variant",
-                    "type": "string"
-                  },
-                  {
-                    "const": "B",
-                    "description": "Second variant",
-                    "type": "string"
+                    "title": "NormalEnum"
                   }
-                ],
-                "title": "NormalEnum"
-              }
+            )
         );
-
-        // Initial check that the text schema above is correct for NormalEnum
-        assert_json_eq!(schema_for!(NormalEnum), incoming);
-
-        let expected = json_schema!(
-            {
-                "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "description": "A very simple enum with empty variants",
-                "type": "string",
-                "enum": [
-                      "C",
-                      "D",
-                      "A",
-                      "B"
-                ],
-                "title": "NormalEnum"
-              }
+        hoist_one_of_enum(&mut kube_schema);
+        assert_json_eq!(
+            kube_schema,
+            json_schema!(
+                {
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "description": "A very simple enum with empty variants",
+                    "type": "string",
+                    "enum": [
+                        "C",
+                        "D",
+                        "A",
+                        "B"
+                    ],
+                    "title": "NormalEnum"
+                  }
+            )
         );
-
-        // let actual = hoist
-
-        // assert_json_eq!(expected, actual);
     }
 }
 
-fn hoist_one_of_enum(incoming: Schema) -> Schema {
-    let Schema::Object(SchemaObject {
+#[cfg(test)]
+fn schemars_schema_to_kube_schema(incoming: schemars::Schema) -> Result<Schema, serde_json::Error> {
+    serde_json::from_value(incoming.to_value())
+}
+
+#[cfg(test)]
+fn hoist_one_of_enum(schema: &mut Schema) {
+    if let Schema::Object(SchemaObject {
         subschemas: Some(subschemas),
+        instance_type: object_type,
+        enum_values: object_ebum,
         ..
-    }) = &incoming
-    else {
-        return incoming;
-    };
-
-    let SubschemaValidation {
+    }) = schema && let SubschemaValidation {
         one_of: Some(one_of), ..
-    } = subschemas.deref()
-    else {
-        return incoming;
-    };
+    } = &**subschemas
+     && !one_of.is_empty()
+    {
+        let mut types = one_of.iter().map(|obj| match obj {
+            Schema::Object(SchemaObject { instance_type: Some(type_),  ..}) => type_,
+            Schema::Object(_) => panic!("oneOf variants need to define a type!: {obj:?}"),
+            Schema::Bool(_) => panic!("oneOf variants can not be of type boolean"),
+        });
+        let enums = one_of.iter().flat_map(|obj| match obj {
+            Schema::Object(SchemaObject {enum_values: Some(enum_), ..}) => enum_.clone(),
+            Schema::Object(SchemaObject {other, ..})=> match other.get("const") {
+                Some(const_) => vec![const_.clone()],
+                None => panic!("oneOf variant did not provide \"enum\" or \"const\": {obj:?}"),
+            },
+            Schema::Bool(_) => panic!("oneOf variants can not be of type boolean"),
+        });
 
-    if one_of.is_empty() {
-        return incoming;
+        let first_type = types
+            .next()
+            .expect("oneOf must have at least one variant - we already checked that");
+        if types.any(|t| t != first_type) {
+            panic!("All oneOf variants must have the same type");
+        }
+
+        *object_type = Some(first_type.clone());
+        *object_ebum = Some(enums.collect());
+        subschemas.one_of = None;
+
     }
-
-    // now the meat. Need to get the oneOf variants up into `enum`
-    // panic if the types differ
-
-
-    todo!("finish it")
 }
 
 impl Transform for StructuralSchemaRewriter {
