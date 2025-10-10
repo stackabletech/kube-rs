@@ -497,7 +497,6 @@ fn hoist_any_of_option_enum(incoming: SchemaObject) -> SchemaObject {
     let null = json!({
         "enum": [null],
         "nullable": true
-
     });
 
     // iter through any_of for matching null
@@ -692,6 +691,17 @@ fn hoist_subschema_properties(
             variant_obj.additional_properties = None;
 
             merge_metadata(instance_type, variant_type.take());
+        } else if let Schema::Object(SchemaObject {
+            object: None,
+            instance_type: variant_type,
+            metadata,
+            ..
+        }) = variant
+        {
+            if *variant_type == Some(SingleOrVec::Single(Box::new(InstanceType::Object))) {
+                *variant_type = None;
+                *metadata = None;
+            }
         }
     }
 }
