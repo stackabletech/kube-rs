@@ -272,6 +272,8 @@ fn untagged_enum() {
                                   "two": {
                                     "description": "Used in case the `two` field of type [`NormalEnum`] is present",
                                     "enum": [
+                                      "C",
+                                      "D",
                                       "A",
                                       "B"
                                     ],
@@ -360,6 +362,8 @@ fn optional_untagged_enum() {
                                   "two": {
                                     "description": "Used in case the `two` field of type [`NormalEnum`] is present",
                                     "enum": [
+                                      "C",
+                                      "D",
                                       "A",
                                       "B"
                                     ],
@@ -444,6 +448,8 @@ fn flattened_untagged_enum() {
                                   "two": {
                                     "description": "Used in case the `two` field of type [`NormalEnum`] is present",
                                     "enum": [
+                                      "C",
+                                      "D",
                                       "A",
                                       "B"
                                     ],
