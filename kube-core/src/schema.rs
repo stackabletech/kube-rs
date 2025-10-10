@@ -551,7 +551,9 @@ impl Transform for StructuralSchemaRewriter {
             None => return,
         };
         let schema = hoist_one_of_enum(schema);
-        let mut schema = hoist_any_of_option_enum(schema);
+        let schema = hoist_any_of_option_enum(schema);
+        // todo: let schema = strip_any_of_empty_object_entry(schema);
+        let mut schema = schema;
         if let Some(subschemas) = &mut schema.subschemas {
             if let Some(one_of) = subschemas.one_of.as_mut() {
                 // Tagged enums are serialized using `one_of`
