@@ -257,7 +257,14 @@ mod test {
 
     use super::*;
 
-    /// A very simple enum with empty variants
+    /// A very simple enum with unit variants, and no comments
+    #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+    enum NormalEnumNoComments {
+        A,
+        B,
+    }
+
+    /// A very simple enum with unit variants, and comments
     #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
     enum NormalEnum {
         /// First variant
@@ -270,19 +277,49 @@ mod test {
         D,
     }
 
-    #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-    enum B {}
+    #[test]
+    fn schema_for_enum_without_comments() {
+        let schemars_schema = schema_for!(NormalEnumNoComments);
+
+        assert_json_eq!(
+            schemars_schema,
+            // replace the json_schema with this to get the full output.
+            // serde_json::json!(42)
+            json_schema!(
+                {
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "description": "A very simple enum with unit variants, and no comments",
+                    "enum": [
+                      "A",
+                      "B"
+                    ],
+                    "title": "NormalEnumNoComments",
+                    "type": "string"
+                }
+            )
+        );
+
+        let kube_schema: crate::schema::Schema =
+            schemars_schema_to_kube_schema(schemars_schema.clone()).unwrap();
+
+        let hoisted_kube_schema = hoist_one_of_enum(kube_schema.clone());
+
+        // No hoisting needed
+        assert_json_eq!(hoisted_kube_schema, kube_schema);
+    }
 
     #[test]
-    fn hoisting_a_schema() {
+    fn schema_for_enum_with_comments() {
         let schemars_schema = schema_for!(NormalEnum);
 
         assert_json_eq!(
             schemars_schema,
+            // replace the json_schema with this to get the full output.
+            // serde_json::json!(42)
             json_schema!(
                 {
                     "$schema": "https://json-schema.org/draft/2020-12/schema",
-                    "description": "A very simple enum with empty variants",
+                    "description": "A very simple enum with unit variants, and comments",
                     "oneOf": [
                       {
                         "enum": [
@@ -311,13 +348,18 @@ mod test {
         let kube_schema: crate::schema::Schema =
             schemars_schema_to_kube_schema(schemars_schema.clone()).unwrap();
 
-        let hoisted_kube_schema = hoist_one_of_enum(kube_schema);
+        let hoisted_kube_schema = hoist_one_of_enum(kube_schema.clone());
+
+        assert_ne!(
+            hoisted_kube_schema, kube_schema,
+            "Hoisting was performed, so hoisted_kube_schema != kube_schema"
+        );
         assert_json_eq!(
             hoisted_kube_schema,
             json_schema!(
                 {
                     "$schema": "https://json-schema.org/draft/2020-12/schema",
-                    "description": "A very simple enum with empty variants",
+                    "description": "A very simple enum with unit variants, and comments",
                     "type": "string",
                     "enum": [
                         "C",
