@@ -7,8 +7,11 @@
 
 use schemars::{transform::Transform, JsonSchema};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
+use serde_json::{json, Value};
+use std::{
+    collections::{btree_map::Entry, BTreeMap, BTreeSet},
+    ops::Deref as _,
+};
 
 /// schemars [`Visitor`] that rewrites a [`Schema`] to conform to Kubernetes' "structural schema" rules
 ///
@@ -246,16 +249,310 @@ enum SingleOrVec<T> {
     Vec(Vec<T>),
 }
 
+// #[cfg(test)]
+// mod test {
+//     use assert_json_diff::assert_json_eq;
+//     use schemars::{json_schema, schema_for, JsonSchema};
+//     use serde::{Deserialize, Serialize};
+
+//     use super::*;
+
+//     /// A very simple enum with unit variants, and no comments
+//     #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+//     enum NormalEnumNoComments {
+//         A,
+//         B,
+//     }
+
+//     /// A very simple enum with unit variants, and comments
+//     #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+//     enum NormalEnum {
+//         /// First variant
+//         A,
+//         /// Second variant
+//         B,
+
+//         // No doc-comments on these variants
+//         C,
+//         D,
+//     }
+
+//     #[test]
+//     fn schema_for_enum_without_comments() {
+//         let schemars_schema = schema_for!(NormalEnumNoComments);
+
+//         assert_json_eq!(
+//             schemars_schema,
+//             // replace the json_schema with this to get the full output.
+//             // serde_json::json!(42)
+//             json_schema!(
+//                 {
+//                     "$schema": "https://json-schema.org/draft/2020-12/schema",
+//                     "description": "A very simple enum with unit variants, and no comments",
+//                     "enum": [
+//                       "A",
+//                       "B"
+//                     ],
+//                     "title": "NormalEnumNoComments",
+//                     "type": "string"
+//                 }
+//             )
+//         );
+
+//         let kube_schema: crate::schema::Schema =
+//             schemars_schema_to_kube_schema(schemars_schema.clone()).unwrap();
+
+//         let hoisted_kube_schema = hoist_one_of_enum(kube_schema.clone());
+
+//         // No hoisting needed
+//         assert_json_eq!(hoisted_kube_schema, kube_schema);
+//     }
+
+//     #[test]
+//     fn schema_for_enum_with_comments() {
+//         let schemars_schema = schema_for!(NormalEnum);
+
+//         assert_json_eq!(
+//             schemars_schema,
+//             // replace the json_schema with this to get the full output.
+//             // serde_json::json!(42)
+//             json_schema!(
+//                 {
+//                     "$schema": "https://json-schema.org/draft/2020-12/schema",
+//                     "description": "A very simple enum with unit variants, and comments",
+//                     "oneOf": [
+//                       {
+//                         "enum": [
+//                           "C",
+//                           "D"
+//                         ],
+//                         "type": "string"
+//                       },
+//                       {
+//                         "const": "A",
+//                         "description": "First variant",
+//                         "type": "string"
+//                       },
+//                       {
+//                         "const": "B",
+//                         "description": "Second variant",
+//                         "type": "string"
+//                       }
+//                     ],
+//                     "title": "NormalEnum"
+//                   }
+//             )
+//         );
+
+
+//         let kube_schema: crate::schema::Schema =
+//             schemars_schema_to_kube_schema(schemars_schema.clone()).unwrap();
+
+//         let hoisted_kube_schema = hoist_one_of_enum(kube_schema.clone());
+
+//         assert_ne!(
+//             hoisted_kube_schema, kube_schema,
+//             "Hoisting was performed, so hoisted_kube_schema != kube_schema"
+//         );
+//         assert_json_eq!(
+//             hoisted_kube_schema,
+//             json_schema!(
+//                 {
+//                     "$schema": "https://json-schema.org/draft/2020-12/schema",
+//                     "description": "A very simple enum with unit variants, and comments",
+//                     "type": "string",
+//                     "enum": [
+//                         "C",
+//                         "D",
+//                         "A",
+//                         "B"
+//                     ],
+//                     "title": "NormalEnum"
+//                   }
+//             )
+//         );
+//     }
+// }
+
+#[cfg(test)]
+fn schemars_schema_to_kube_schema(incoming: schemars::Schema) -> Result<Schema, serde_json::Error> {
+    serde_json::from_value(incoming.to_value())
+}
+
+/// Hoist `oneOf` into top level `enum`.
+///
+/// This will move all `enum` variants and `const` values under `oneOf` into a single top level `enum` along with `type`.
+/// It will panic if there are anomalies, like differences in `type` values, or lack of `enum` or `const` fields in the `oneOf` entries.
+///
+/// Note: variant descriptions will be lost in the process, and the original `oneOf` will be erased.
+///
+// Note: This function is heavily documented to express intent. It is intended to help developers
+// make adjustments for future Schemars changes.
+fn hoist_one_of_enum(incoming: SchemaObject) -> SchemaObject {
+    // Run some initial checks in case there is nothing to do
+    let SchemaObject {
+        subschemas: Some(subschemas),
+        ..
+    } = &incoming
+    else {
+        return incoming;
+    };
+
+    let SubschemaValidation {
+        one_of: Some(one_of), ..
+    } = subschemas.deref()
+    else {
+        return incoming;
+    };
+
+    if one_of.is_empty() {
+        return incoming;
+    }
+
+    // At this point, we need to create a new Schema and hoist the `oneOf`
+    // variants' `enum`/`const` values up into a parent `enum`.
+    let mut new_schema = incoming.clone();
+    if let SchemaObject {
+        subschemas: Some(new_subschemas),
+        instance_type: new_instance_type,
+        enum_values: new_enum_values,
+        ..
+    } = &mut new_schema
+    {
+        // For each `oneOf`, get the `type`.
+        // Panic if it has no `type`, or if the entry is a boolean.
+        let mut types = one_of.iter().map(|obj| match obj {
+            Schema::Object(SchemaObject {
+                instance_type: Some(r#type),
+                ..
+            }) => r#type,
+            // TODO (@NickLarsenNZ): Is it correct that JSON Schema oneOf must have a type?
+            Schema::Object(_) => panic!("oneOf variants need to define a type!: {obj:?}"),
+            Schema::Bool(_) => panic!("oneOf variants can not be of type boolean"),
+        });
+
+        // Get the first `type` value, then panic if any subsequent `type` values differ.
+        let hoisted_instance_type = types
+            .next()
+            .expect("oneOf must have at least one variant - we already checked that");
+        // TODO (@NickLarsenNZ): Didn't sbernauer say that the types
+        if types.any(|t| t != hoisted_instance_type) {
+            panic!("All oneOf variants must have the same type");
+        }
+
+        *new_instance_type = Some(hoisted_instance_type.clone());
+
+        // For each `oneOf` entry, iterate over the `enum` and `const` values.
+        // Panic on an entry that doesn't contain an `enum` or `const`.
+        let new_enums = one_of.iter().flat_map(|obj| match obj {
+            Schema::Object(SchemaObject {
+                enum_values: Some(r#enum),
+                ..
+            }) => r#enum.clone(),
+            // Warning: The `const` check below must come after the enum check above.
+            // Otherwise it will panic on a valid entry with an `enum`.
+            Schema::Object(SchemaObject { other, .. }) => match other.get("const") {
+                Some(r#const) => vec![r#const.clone()],
+                None => panic!("oneOf variant did not provide \"enum\" or \"const\": {obj:?}"),
+            },
+            Schema::Bool(_) => panic!("oneOf variants can not be of type boolean"),
+        });
+
+        // Just in case there were existing enum values, add to them.
+        // TODO (@NickLarsenNZ): Check if `oneOf` and `enum` are mutually exclusive for a valid spec.
+        new_enum_values.get_or_insert_default().extend(new_enums);
+
+        // We can clear out the existing oneOf's, since they will be hoisted below.
+        new_subschemas.one_of = None;
+    }
+
+    new_schema
+}
+
+// if anyOf with 2 entries, and one is nullable with enum that is [null],
+// then hoist nullable, description, type, enum from the other entry.
+// set anyOf to None
+fn hoist_any_of_option_enum(incoming: SchemaObject) -> SchemaObject {
+    // Run some initial checks in case there is nothing to do
+    let SchemaObject {
+        subschemas: Some(subschemas),
+        ..
+    } = &incoming
+    else {
+        return incoming;
+    };
+
+    let SubschemaValidation {
+        any_of: Some(any_of), ..
+    } = subschemas.deref()
+    else {
+        return incoming;
+    };
+
+    if any_of.len() != 2 {
+        return incoming;
+    };
+
+    // This is the signature of an Optional enum that needs hoisting
+    let null = json!({
+        "enum": [null],
+        "nullable": true
+    });
+
+    // iter through any_of for matching null
+    let results: [bool; 2] = any_of
+        .iter()
+        .map(|x| serde_json::to_value(x).expect("schema should be able to convert to JSON"))
+        .map(|x| x == null)
+        .collect::<Vec<_>>()
+        .try_into()
+        .expect("there should be exactly 2 elements. We checked earlier");
+
+    let to_hoist = match results {
+        [true, true] => panic!("Too many nulls, not enough drinks"),
+        [true, false] => &any_of[1],
+        [false, true] => &any_of[0],
+        [false, false] => return incoming,
+    };
+
+    // my goodness!
+    let Schema::Object(to_hoist) = to_hoist else {
+        panic!("Somehow we have stumbled across a bool schema");
+    };
+
+    let mut new_schema = incoming.clone();
+
+    let mut new_metadata = incoming.metadata.clone().unwrap_or_default();
+    new_metadata.description = to_hoist.metadata.as_ref().and_then(|m| m.description.clone());
+
+    new_schema.metadata = Some(new_metadata);
+    new_schema.instance_type = to_hoist.instance_type.clone();
+    new_schema.enum_values = to_hoist.enum_values.clone();
+    new_schema.other["nullable"] = true.into();
+
+    new_schema
+        .subschemas
+        .as_mut()
+        .expect("we have asserted that there is any_of")
+        .any_of = None;
+
+    new_schema
+}
+
+
 impl Transform for StructuralSchemaRewriter {
     fn transform(&mut self, transform_schema: &mut schemars::Schema) {
         schemars::transform::transform_subschemas(self, transform_schema);
 
-        let mut schema: SchemaObject = match serde_json::from_value(transform_schema.clone().to_value()).ok()
-        {
+        // TODO (@NickLarsenNZ): Replace with conversion function
+        let schema: SchemaObject = match serde_json::from_value(transform_schema.clone().to_value()).ok() {
             Some(schema) => schema,
             None => return,
         };
-
+        let schema = hoist_one_of_enum(schema);
+        let schema = hoist_any_of_option_enum(schema);
+        // todo: let schema = strip_any_of_empty_object_entry(schema);
+        let mut schema = schema;
         if let Some(subschemas) = &mut schema.subschemas {
             if let Some(one_of) = subschemas.one_of.as_mut() {
                 // Tagged enums are serialized using `one_of`
@@ -394,6 +691,17 @@ fn hoist_subschema_properties(
             variant_obj.additional_properties = None;
 
             merge_metadata(instance_type, variant_type.take());
+        } else if let Schema::Object(SchemaObject {
+            object: None,
+            instance_type: variant_type,
+            metadata,
+            ..
+        }) = variant
+        {
+            if *variant_type == Some(SingleOrVec::Single(Box::new(InstanceType::Object))) {
+                *variant_type = None;
+                *metadata = None;
+            }
         }
     }
 }
