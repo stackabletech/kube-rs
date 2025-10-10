@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
-
+    ops::Deref as _,
 };
 
 /// schemars [`Visitor`] that rewrites a [`Schema`] to conform to Kubernetes' "structural schema" rules
@@ -252,7 +252,7 @@ enum SingleOrVec<T> {
 #[cfg(test)]
 mod test {
     use assert_json_diff::assert_json_eq;
-    use schemars::{json_schema, schema_for,  JsonSchema};
+    use schemars::{json_schema, schema_for, JsonSchema};
     use serde::{Deserialize, Serialize};
 
     use super::*;
@@ -276,8 +276,6 @@ mod test {
     #[test]
     fn hoisting_a_schema() {
         let schemars_schema = schema_for!(NormalEnum);
-        let mut kube_schema: crate::schema::Schema =
-            schemars_schema_to_kube_schema(schemars_schema.clone()).unwrap();
 
         assert_json_eq!(
             schemars_schema,
@@ -308,9 +306,14 @@ mod test {
                   }
             )
         );
-        hoist_one_of_enum(&mut kube_schema);
+
+
+        let kube_schema: crate::schema::Schema =
+            schemars_schema_to_kube_schema(schemars_schema.clone()).unwrap();
+
+        let hoisted_kube_schema = hoist_one_of_enum(kube_schema);
         assert_json_eq!(
-            kube_schema,
+            hoisted_kube_schema,
             json_schema!(
                 {
                     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -334,44 +337,94 @@ fn schemars_schema_to_kube_schema(incoming: schemars::Schema) -> Result<Schema, 
     serde_json::from_value(incoming.to_value())
 }
 
-#[cfg(test)]
-fn hoist_one_of_enum(schema: &mut Schema) {
-    if let Schema::Object(SchemaObject {
+/// Hoist `oneOf` into top level `enum`.
+///
+/// This will move all `enum` variants and `const` values under `oneOf` into a single top level `enum` along with `type`.
+/// It will panic if there are anomalies, like differences in `type` values, or lack of `enum` or `const` fields in the `oneOf` entries.
+///
+/// Note: variant descriptions will be lost in the process, and the original `oneOf` will be erased.
+///
+// Note: This function is heavily documented to express intent. It is intended to help developers
+// make adjustments for future Schemars changes.
+fn hoist_one_of_enum(incoming: Schema) -> Schema {
+    // Run some initial checks in case there is nothing to do
+    let Schema::Object(SchemaObject {
         subschemas: Some(subschemas),
-        instance_type: object_type,
-        enum_values: object_ebum,
         ..
-    }) = schema && let SubschemaValidation {
+    }) = &incoming
+    else {
+        return incoming;
+    };
+
+    let SubschemaValidation {
         one_of: Some(one_of), ..
-    } = &**subschemas
-     && !one_of.is_empty()
+    } = subschemas.deref()
+    else {
+        return incoming;
+    };
+
+    if one_of.is_empty() {
+        return incoming;
+    }
+
+    // At this point, we need to create a new Schema and hoist the `oneOf`
+    // variants' `enum`/`const` values up into a parent `enum`.
+    let mut new_schema = incoming.clone();
+    if let Schema::Object(SchemaObject {
+        subschemas: Some(new_subschemas),
+        instance_type: new_instance_type,
+        enum_values: new_enum_values,
+        ..
+    }) = &mut new_schema
     {
+        // For each `oneOf`, get the `type`.
+        // Panic if it has no `type`, or if the entry is a boolean.
         let mut types = one_of.iter().map(|obj| match obj {
-            Schema::Object(SchemaObject { instance_type: Some(type_),  ..}) => type_,
+            Schema::Object(SchemaObject {
+                instance_type: Some(r#type),
+                ..
+            }) => r#type,
+            // TODO (@NickLarsenNZ): Is it correct that JSON Schema oneOf must have a type?
             Schema::Object(_) => panic!("oneOf variants need to define a type!: {obj:?}"),
             Schema::Bool(_) => panic!("oneOf variants can not be of type boolean"),
         });
-        let enums = one_of.iter().flat_map(|obj| match obj {
-            Schema::Object(SchemaObject {enum_values: Some(enum_), ..}) => enum_.clone(),
-            Schema::Object(SchemaObject {other, ..})=> match other.get("const") {
-                Some(const_) => vec![const_.clone()],
+
+        // Get the first `type` value, then panic if any subsequent `type` values differ.
+        let hoisted_instance_type = types
+            .next()
+            .expect("oneOf must have at least one variant - we already checked that");
+        // TODO (@NickLarsenNZ): Didn't sbernauer say that the types
+        if types.any(|t| t != hoisted_instance_type) {
+            panic!("All oneOf variants must have the same type");
+        }
+
+        *new_instance_type = Some(hoisted_instance_type.clone());
+
+        // For each `oneOf` entry, iterate over the `enum` and `const` values.
+        // Panic on an entry that doesn't contain an `enum` or `const`.
+        let new_enums = one_of.iter().flat_map(|obj| match obj {
+            Schema::Object(SchemaObject {
+                enum_values: Some(r#enum),
+                ..
+            }) => r#enum.clone(),
+            // Warning: The `const` check below must come after the enum check above.
+            // Otherwise it will panic on a valid entry with an `enum`.
+            Schema::Object(SchemaObject { other, .. }) => match other.get("const") {
+                Some(r#const) => vec![r#const.clone()],
                 None => panic!("oneOf variant did not provide \"enum\" or \"const\": {obj:?}"),
             },
             Schema::Bool(_) => panic!("oneOf variants can not be of type boolean"),
         });
 
-        let first_type = types
-            .next()
-            .expect("oneOf must have at least one variant - we already checked that");
-        if types.any(|t| t != first_type) {
-            panic!("All oneOf variants must have the same type");
-        }
+        // Just in case there were existing enum values, add to them.
+        // TODO (@NickLarsenNZ): Check if `oneOf` and `enum` are mutually exclusive for a valid spec.
+        new_enum_values.get_or_insert_default().extend(new_enums);
 
-        *object_type = Some(first_type.clone());
-        *object_ebum = Some(enums.collect());
-        subschemas.one_of = None;
-
+        // We can clear out the existing oneOf's, since they will be hoisted below.
+        new_subschemas.one_of = None;
     }
+
+    new_schema
 }
 
 impl Transform for StructuralSchemaRewriter {
