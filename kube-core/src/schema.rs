@@ -739,6 +739,7 @@ fn hoist_subschema_properties(
             ..
         }) = variant
         {
+            // Clear out the description and type to represent the empty `{}` variant
             if *variant_type == Some(SingleOrVec::Single(Box::new(InstanceType::Object))) {
                 *variant_type = None;
                 *metadata = None;
@@ -747,12 +748,22 @@ fn hoist_subschema_properties(
     }
 }
 
+/// Get the single item from an [Iterator].
+///
+/// Return None if the [Iterator] is empty or has more than one entry.
 fn only_item<I: Iterator>(mut i: I) -> Option<I::Item> {
     let item = i.next()?;
     if i.next().is_some() {
         return None;
     }
     Some(item)
+}
+
+#[test]
+fn only_item_t() {
+    assert_eq!(only_item::<std::slice::Iter<'_, &str>>([].iter()), None);
+    assert_eq!(only_item(["one"].iter()), Some(&"one"));
+    assert_eq!(only_item(["one", "two"].iter()), None);
 }
 
 fn merge_metadata(
