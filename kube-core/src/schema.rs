@@ -442,6 +442,7 @@ fn hoist_one_of_enum(incoming: SchemaObject) -> SchemaObject {
 
         *new_instance_type = Some(hoisted_instance_type.clone());
 
+        // Merge the enums:
         // For each `oneOf` entry, iterate over the `enum` and `const` values.
         // Panic on an entry that doesn't contain an `enum` or `const`.
         let new_enums = one_of.iter().flat_map(|obj| match obj {
@@ -499,8 +500,9 @@ fn hoist_any_of_option_enum(incoming: SchemaObject) -> SchemaObject {
         "nullable": true
     });
 
-    // iter through any_of for matching null
-    let results: [bool; 2] = any_of
+    // iter through any_of entries, converting them to Value,
+    // and build a truth table for null matches
+    let entry_is_null: [bool; 2] = any_of
         .iter()
         .map(|x| serde_json::to_value(x).expect("schema should be able to convert to JSON"))
         .map(|x| x == null)
@@ -508,33 +510,67 @@ fn hoist_any_of_option_enum(incoming: SchemaObject) -> SchemaObject {
         .try_into()
         .expect("there should be exactly 2 elements. We checked earlier");
 
-    let to_hoist = match results {
-        [true, true] => panic!("Too many nulls, not enough drinks"),
+    // Get the `any_of` entry that isn't the null entry
+    let non_null_any_of_entry = match entry_is_null {
+        [true, true] => return incoming,
         [true, false] => &any_of[1],
         [false, true] => &any_of[0],
         [false, false] => return incoming,
     };
 
     // my goodness!
-    let Schema::Object(to_hoist) = to_hoist else {
+    let Schema::Object(to_hoist) = non_null_any_of_entry else {
         panic!("Somehow we have stumbled across a bool schema");
     };
 
     let mut new_schema = incoming.clone();
+    // only do this if we still have `non_null_any_of_entry`. If the code changes, we need to revise this
+    new_schema.other["nullable"] = true.into();
 
     let mut new_metadata = incoming.metadata.clone().unwrap_or_default();
     new_metadata.description = to_hoist.metadata.as_ref().and_then(|m| m.description.clone());
 
     new_schema.metadata = Some(new_metadata);
     new_schema.instance_type = to_hoist.instance_type.clone();
-    new_schema.enum_values = to_hoist.enum_values.clone();
-    new_schema.other["nullable"] = true.into();
+    if to_hoist.enum_values.as_ref().is_some_and(|v| !v.is_empty()) {
+        // need to hoist enum up to parent
+        new_schema.enum_values = to_hoist.enum_values.clone();
 
-    new_schema
+        // should we clear out subschemas?
+        // we do need to clear out anyOf, since that's where we got the enum that is now hoisted.
+        // but if this code changes to handle one_of too, then we need to ensure we don't drop data that we haven't hoisted yet.
+        new_schema
+            .subschemas
+            .as_mut()
+            .expect("we have asserted that there is any_of")
+            .any_of = None;
+    } else if to_hoist
         .subschemas
-        .as_mut()
-        .expect("we have asserted that there is any_of")
-        .any_of = None;
+        .as_ref()
+        .is_some_and(|s| s.any_of.as_ref().is_some_and(|x| !x.is_empty()))
+    {
+        // Replace the parent any_of with the nested any_of
+        // TODO (@NickLarsenNZ): Might need to find the null object and clear it out.
+        new_schema
+            .subschemas
+            .as_mut()
+            .expect("We have asserted there is any_of")
+            .any_of = to_hoist
+            .subschemas
+            .as_ref()
+            .expect("We have asserted there is any_of")
+            .any_of
+            .clone();
+        // Bring across the properties, etc...
+        // Is this ok?
+        new_schema.object = to_hoist.object.clone();
+    } else if to_hoist
+        .subschemas
+        .as_ref()
+        .is_some_and(|s| s.one_of.as_ref().is_some_and(|x| !x.is_empty()))
+    {
+        panic!("We have an unexpected one_of nested under an any_of. Not yet sure what and how to hoist")
+    }
 
     new_schema
 }
@@ -542,6 +578,7 @@ fn hoist_any_of_option_enum(incoming: SchemaObject) -> SchemaObject {
 
 impl Transform for StructuralSchemaRewriter {
     fn transform(&mut self, transform_schema: &mut schemars::Schema) {
+        // Apply this (self) transform to all subschemas
         schemars::transform::transform_subschemas(self, transform_schema);
 
         // TODO (@NickLarsenNZ): Replace with conversion function
@@ -551,20 +588,23 @@ impl Transform for StructuralSchemaRewriter {
         };
         let schema = hoist_one_of_enum(schema);
         let schema = hoist_any_of_option_enum(schema);
-        // todo: let schema = strip_any_of_empty_object_entry(schema);
+        // todo: let schema = strip_any_of_empty_object_entry(schema); // this is currently done in an `else if` block in hoist_subschema_properties()
         let mut schema = schema;
+
         if let Some(subschemas) = &mut schema.subschemas {
-            if let Some(one_of) = subschemas.one_of.as_mut() {
-                // Tagged enums are serialized using `one_of`
-                hoist_subschema_properties(one_of, &mut schema.object, &mut schema.instance_type);
+            //     // if let Some(one_of) = subschemas.one_of.as_mut() {
+            //     //     // Tagged enums are serialized using `one_of`
+            //     //     // Maybe we also have to hoist properties?
+            //     //     hoist_subschema_properties(one_of, &mut schema.object, &mut schema.instance_type);
 
-                // "Plain" enums are serialized using `one_of` if they have doc tags
-                hoist_subschema_enum_values(one_of, &mut schema.enum_values, &mut schema.instance_type);
+            //     //     // "Plain" enums are serialized using `one_of` if they have doc tags
+            //     //     // This is now done by hoist_one_of_enum
+            //     //     hoist_subschema_enum_values(one_of, &mut schema.enum_values, &mut schema.instance_type);
 
-                if one_of.is_empty() {
-                    subschemas.one_of = None;
-                }
-            }
+            //     //     if one_of.is_empty() {
+            //     //         subschemas.one_of = None;
+            //     //     }
+            //     // }
 
             if let Some(any_of) = &mut subschemas.any_of {
                 // Untagged enums are serialized using `any_of`
@@ -594,6 +634,7 @@ impl Transform for StructuralSchemaRewriter {
             array.unique_items = None;
         }
 
+        // Convert back to schemars::Schema
         if let Ok(schema) = serde_json::to_value(schema) {
             if let Ok(transformed) = serde_json::from_value(schema) {
                 *transform_schema = transformed;
