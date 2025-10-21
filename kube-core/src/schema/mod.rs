@@ -2,15 +2,22 @@
 //!
 //! [`CustomResourceDefinition`]: `k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition`
 
+mod transform_any_of;
+mod transform_one_of;
+mod transform_properties;
+
 // Used in docs
 #[allow(unused_imports)] use schemars::generate::SchemaSettings;
 
 use schemars::{transform::Transform, JsonSchema};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::{
-    collections::{btree_map::Entry, BTreeMap, BTreeSet},
-    ops::Deref as _,
+use serde_json::Value;
+use std::collections::{BTreeMap, BTreeSet};
+
+use crate::schema::{
+    transform_any_of::hoist_any_of_subschema_with_a_nullable_variant,
+    transform_one_of::hoist_one_of_enum_with_unit_variants,
+    transform_properties::hoist_properties_for_any_of_subschemas,
 };
 
 /// schemars [`Visitor`] that rewrites a [`Schema`] to conform to Kubernetes' "structural schema" rules
@@ -249,372 +256,30 @@ enum SingleOrVec<T> {
     Vec(Vec<T>),
 }
 
-// #[cfg(test)]
-// mod test {
-//     use assert_json_diff::assert_json_eq;
-//     use schemars::{json_schema, schema_for, JsonSchema};
-//     use serde::{Deserialize, Serialize};
-
-//     use super::*;
-
-//     /// A very simple enum with unit variants, and no comments
-//     #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-//     enum NormalEnumNoComments {
-//         A,
-//         B,
-//     }
-
-//     /// A very simple enum with unit variants, and comments
-//     #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-//     enum NormalEnum {
-//         /// First variant
-//         A,
-//         /// Second variant
-//         B,
-
-//         // No doc-comments on these variants
-//         C,
-//         D,
-//     }
-
-//     #[test]
-//     fn schema_for_enum_without_comments() {
-//         let schemars_schema = schema_for!(NormalEnumNoComments);
-
-//         assert_json_eq!(
-//             schemars_schema,
-//             // replace the json_schema with this to get the full output.
-//             // serde_json::json!(42)
-//             json_schema!(
-//                 {
-//                     "$schema": "https://json-schema.org/draft/2020-12/schema",
-//                     "description": "A very simple enum with unit variants, and no comments",
-//                     "enum": [
-//                       "A",
-//                       "B"
-//                     ],
-//                     "title": "NormalEnumNoComments",
-//                     "type": "string"
-//                 }
-//             )
-//         );
-
-//         let kube_schema: crate::schema::Schema =
-//             schemars_schema_to_kube_schema(schemars_schema.clone()).unwrap();
-
-//         let hoisted_kube_schema = hoist_one_of_enum(kube_schema.clone());
-
-//         // No hoisting needed
-//         assert_json_eq!(hoisted_kube_schema, kube_schema);
-//     }
-
-//     #[test]
-//     fn schema_for_enum_with_comments() {
-//         let schemars_schema = schema_for!(NormalEnum);
-
-//         assert_json_eq!(
-//             schemars_schema,
-//             // replace the json_schema with this to get the full output.
-//             // serde_json::json!(42)
-//             json_schema!(
-//                 {
-//                     "$schema": "https://json-schema.org/draft/2020-12/schema",
-//                     "description": "A very simple enum with unit variants, and comments",
-//                     "oneOf": [
-//                       {
-//                         "enum": [
-//                           "C",
-//                           "D"
-//                         ],
-//                         "type": "string"
-//                       },
-//                       {
-//                         "const": "A",
-//                         "description": "First variant",
-//                         "type": "string"
-//                       },
-//                       {
-//                         "const": "B",
-//                         "description": "Second variant",
-//                         "type": "string"
-//                       }
-//                     ],
-//                     "title": "NormalEnum"
-//                   }
-//             )
-//         );
-
-
-//         let kube_schema: crate::schema::Schema =
-//             schemars_schema_to_kube_schema(schemars_schema.clone()).unwrap();
-
-//         let hoisted_kube_schema = hoist_one_of_enum(kube_schema.clone());
-
-//         assert_ne!(
-//             hoisted_kube_schema, kube_schema,
-//             "Hoisting was performed, so hoisted_kube_schema != kube_schema"
-//         );
-//         assert_json_eq!(
-//             hoisted_kube_schema,
-//             json_schema!(
-//                 {
-//                     "$schema": "https://json-schema.org/draft/2020-12/schema",
-//                     "description": "A very simple enum with unit variants, and comments",
-//                     "type": "string",
-//                     "enum": [
-//                         "C",
-//                         "D",
-//                         "A",
-//                         "B"
-//                     ],
-//                     "title": "NormalEnum"
-//                   }
-//             )
-//         );
-//     }
-// }
-
 #[cfg(test)]
 fn schemars_schema_to_kube_schema(incoming: schemars::Schema) -> Result<Schema, serde_json::Error> {
     serde_json::from_value(incoming.to_value())
 }
-
-/// Hoist `oneOf` into top level `enum`.
-///
-/// This will move all `enum` variants and `const` values under `oneOf` into a single top level `enum` along with `type`.
-/// It will panic if there are anomalies, like differences in `type` values, or lack of `enum` or `const` fields in the `oneOf` entries.
-///
-/// Note: variant descriptions will be lost in the process, and the original `oneOf` will be erased.
-///
-// Note: This function is heavily documented to express intent. It is intended to help developers
-// make adjustments for future Schemars changes.
-fn hoist_one_of_enum(incoming: SchemaObject) -> SchemaObject {
-    // Run some initial checks in case there is nothing to do
-    let SchemaObject {
-        subschemas: Some(subschemas),
-        ..
-    } = &incoming
-    else {
-        return incoming;
-    };
-
-    let SubschemaValidation {
-        one_of: Some(one_of), ..
-    } = subschemas.deref()
-    else {
-        return incoming;
-    };
-
-    if one_of.is_empty() {
-        return incoming;
-    }
-
-    // At this point, we need to create a new Schema and hoist the `oneOf`
-    // variants' `enum`/`const` values up into a parent `enum`.
-    let mut new_schema = incoming.clone();
-    if let SchemaObject {
-        subschemas: Some(new_subschemas),
-        instance_type: new_instance_type,
-        enum_values: new_enum_values,
-        ..
-    } = &mut new_schema
-    {
-        // For each `oneOf`, get the `type`.
-        // Panic if it has no `type`, or if the entry is a boolean.
-        let mut types = one_of.iter().map(|obj| match obj {
-            Schema::Object(SchemaObject {
-                instance_type: Some(r#type),
-                ..
-            }) => r#type,
-            // TODO (@NickLarsenNZ): Is it correct that JSON Schema oneOf must have a type?
-            Schema::Object(_) => panic!("oneOf variants need to define a type!: {obj:?}"),
-            Schema::Bool(_) => panic!("oneOf variants can not be of type boolean"),
-        });
-
-        // Get the first `type` value, then panic if any subsequent `type` values differ.
-        let hoisted_instance_type = types
-            .next()
-            .expect("oneOf must have at least one variant - we already checked that");
-        // TODO (@NickLarsenNZ): Didn't sbernauer say that the types
-        if types.any(|t| t != hoisted_instance_type) {
-            panic!("All oneOf variants must have the same type");
-        }
-
-        *new_instance_type = Some(hoisted_instance_type.clone());
-
-        // Merge the enums:
-        // For each `oneOf` entry, iterate over the `enum` and `const` values.
-        // Panic on an entry that doesn't contain an `enum` or `const`.
-        let new_enums = one_of.iter().flat_map(|obj| match obj {
-            Schema::Object(SchemaObject {
-                enum_values: Some(r#enum),
-                ..
-            }) => r#enum.clone(),
-            // Warning: The `const` check below must come after the enum check above.
-            // Otherwise it will panic on a valid entry with an `enum`.
-            Schema::Object(SchemaObject { other, .. }) => match other.get("const") {
-                Some(r#const) => vec![r#const.clone()],
-                None => panic!("oneOf variant did not provide \"enum\" or \"const\": {obj:?}"),
-            },
-            Schema::Bool(_) => panic!("oneOf variants can not be of type boolean"),
-        });
-
-        // Just in case there were existing enum values, add to them.
-        // TODO (@NickLarsenNZ): Check if `oneOf` and `enum` are mutually exclusive for a valid spec.
-        new_enum_values.get_or_insert_default().extend(new_enums);
-
-        // We can clear out the existing oneOf's, since they will be hoisted below.
-        new_subschemas.one_of = None;
-    }
-
-    new_schema
-}
-
-// if anyOf with 2 entries, and one is nullable with enum that is [null],
-// then hoist nullable, description, type, enum from the other entry.
-// set anyOf to None
-fn hoist_any_of_option_enum(incoming: SchemaObject) -> SchemaObject {
-    // Run some initial checks in case there is nothing to do
-    let SchemaObject {
-        subschemas: Some(subschemas),
-        ..
-    } = &incoming
-    else {
-        return incoming;
-    };
-
-    let SubschemaValidation {
-        any_of: Some(any_of), ..
-    } = subschemas.deref()
-    else {
-        return incoming;
-    };
-
-    if any_of.len() != 2 {
-        return incoming;
-    };
-
-    // This is the signature of an Optional enum that needs hoisting
-    let null = json!({
-        "enum": [null],
-        "nullable": true
-    });
-
-    // iter through any_of entries, converting them to Value,
-    // and build a truth table for null matches
-    let entry_is_null: [bool; 2] = any_of
-        .iter()
-        .map(|x| serde_json::to_value(x).expect("schema should be able to convert to JSON"))
-        .map(|x| x == null)
-        .collect::<Vec<_>>()
-        .try_into()
-        .expect("there should be exactly 2 elements. We checked earlier");
-
-    // Get the `any_of` entry that isn't the null entry
-    let non_null_any_of_entry = match entry_is_null {
-        [true, true] => return incoming,
-        [true, false] => &any_of[1],
-        [false, true] => &any_of[0],
-        [false, false] => return incoming,
-    };
-
-    // my goodness!
-    let Schema::Object(to_hoist) = non_null_any_of_entry else {
-        panic!("Somehow we have stumbled across a bool schema");
-    };
-
-    let mut new_schema = incoming.clone();
-    // only do this if we still have `non_null_any_of_entry`. If the code changes, we need to revise this
-    new_schema.other["nullable"] = true.into();
-
-    let mut new_metadata = incoming.metadata.clone().unwrap_or_default();
-    new_metadata.description = to_hoist.metadata.as_ref().and_then(|m| m.description.clone());
-
-    new_schema.metadata = Some(new_metadata);
-    new_schema.instance_type = to_hoist.instance_type.clone();
-    if to_hoist.enum_values.as_ref().is_some_and(|v| !v.is_empty()) {
-        // need to hoist enum up to parent
-        new_schema.enum_values = to_hoist.enum_values.clone();
-
-        // should we clear out subschemas?
-        // we do need to clear out anyOf, since that's where we got the enum that is now hoisted.
-        // but if this code changes to handle one_of too, then we need to ensure we don't drop data that we haven't hoisted yet.
-        new_schema
-            .subschemas
-            .as_mut()
-            .expect("we have asserted that there is any_of")
-            .any_of = None;
-    } else if to_hoist
-        .subschemas
-        .as_ref()
-        .is_some_and(|s| s.any_of.as_ref().is_some_and(|x| !x.is_empty()))
-    {
-        // Replace the parent any_of with the nested any_of
-        // TODO (@NickLarsenNZ): Might need to find the null object and clear it out.
-        new_schema
-            .subschemas
-            .as_mut()
-            .expect("We have asserted there is any_of")
-            .any_of = to_hoist
-            .subschemas
-            .as_ref()
-            .expect("We have asserted there is any_of")
-            .any_of
-            .clone();
-        // Bring across the properties, etc...
-        // Is this ok? Or should we just replace properties with sub properties?
-        // Or should we carefully copy the property entries over in case there are existing entries?
-        // new_schema.object = to_hoist.object.clone();
-        if let Some(to_hoist_object) = &to_hoist.object {
-            new_schema.object.get_or_insert_default().properties = to_hoist_object.properties.clone();
-        }
-    } else if to_hoist
-        .subschemas
-        .as_ref()
-        .is_some_and(|s| s.one_of.as_ref().is_some_and(|x| !x.is_empty()))
-    {
-        panic!("We have an unexpected one_of nested under an any_of. Not yet sure what and how to hoist")
-    }
-
-    new_schema
-}
-
 
 impl Transform for StructuralSchemaRewriter {
     fn transform(&mut self, transform_schema: &mut schemars::Schema) {
         // Apply this (self) transform to all subschemas
         schemars::transform::transform_subschemas(self, transform_schema);
 
-        // TODO (@NickLarsenNZ): Replace with conversion function
-        let schema: SchemaObject = match serde_json::from_value(transform_schema.clone().to_value()).ok() {
+        let mut schema: SchemaObject = match serde_json::from_value(transform_schema.clone().to_value()).ok()
+        {
+            // TODO (@NickLarsenNZ): At this point, we are seeing duplicate `title` when printing schema as json.
+            // This is because `title` is specified under both `extensions` and `other`.
             Some(schema) => schema,
             None => return,
         };
-        let schema = hoist_one_of_enum(schema);
-        let schema = hoist_any_of_option_enum(schema);
-        // todo: let schema = strip_any_of_empty_object_entry(schema); // this is currently done in an `else if` block in hoist_subschema_properties()
-        let mut schema = schema;
 
-        if let Some(subschemas) = &mut schema.subschemas {
-            //     // if let Some(one_of) = subschemas.one_of.as_mut() {
-            //     //     // Tagged enums are serialized using `one_of`
-            //     //     // Maybe we also have to hoist properties?
-            //     //     hoist_subschema_properties(one_of, &mut schema.object, &mut schema.instance_type);
+        dbg!(&schema);
 
-            //     //     // "Plain" enums are serialized using `one_of` if they have doc tags
-            //     //     // This is now done by hoist_one_of_enum
-            //     //     hoist_subschema_enum_values(one_of, &mut schema.enum_values, &mut schema.instance_type);
-
-            //     //     if one_of.is_empty() {
-            //     //         subschemas.one_of = None;
-            //     //     }
-            //     // }
-
-            if let Some(any_of) = &mut subschemas.any_of {
-                // Untagged enums are serialized using `any_of`
-                hoist_subschema_properties(any_of, &mut schema.object, &mut schema.instance_type);
-            }
-        }
+        // Hoist parts of the schema to make it valid for k8s
+        hoist_one_of_enum_with_unit_variants(&mut schema);
+        hoist_any_of_subschema_with_a_nullable_variant(&mut schema);
+        hoist_properties_for_any_of_subschemas(&mut schema);
 
         // check for maps without with properties (i.e. flattened maps)
         // and allow these to persist dynamically
@@ -642,148 +307,6 @@ impl Transform for StructuralSchemaRewriter {
         if let Ok(schema) = serde_json::to_value(schema) {
             if let Ok(transformed) = serde_json::from_value(schema) {
                 *transform_schema = transformed;
-            }
-        }
-    }
-}
-
-/// Bring all plain enum values up to the root schema,
-/// since Kubernetes doesn't allow subschemas to define enum options.
-///
-/// (Enum here means a list of hard-coded values, not a tagged union.)
-fn hoist_subschema_enum_values(
-    subschemas: &mut Vec<Schema>,
-    common_enum_values: &mut Option<Vec<serde_json::Value>>,
-    instance_type: &mut Option<SingleOrVec<InstanceType>>,
-) {
-    subschemas.retain(|variant| {
-        if let Schema::Object(SchemaObject {
-            instance_type: variant_type,
-            enum_values: Some(variant_enum_values),
-            ..
-        }) = variant
-        {
-            if let Some(variant_type) = variant_type {
-                match instance_type {
-                    None => *instance_type = Some(variant_type.clone()),
-                    Some(tpe) => {
-                        if tpe != variant_type {
-                            panic!("Enum variant set {variant_enum_values:?} has type {variant_type:?} but was already defined as {instance_type:?}. The instance type must be equal for all subschema variants.")
-                        }
-                    }
-                }
-            }
-            common_enum_values
-                .get_or_insert_with(Vec::new)
-                .extend(variant_enum_values.iter().cloned());
-            false
-        } else {
-            true
-        }
-    })
-}
-
-/// Bring all property definitions from subschemas up to the root schema,
-/// since Kubernetes doesn't allow subschemas to define properties.
-fn hoist_subschema_properties(
-    subschemas: &mut Vec<Schema>,
-    common_obj: &mut Option<Box<ObjectValidation>>,
-    instance_type: &mut Option<SingleOrVec<InstanceType>>,
-) {
-    for variant in subschemas {
-        if let Schema::Object(SchemaObject {
-            instance_type: variant_type,
-            object: Some(variant_obj),
-            metadata: variant_metadata,
-            ..
-        }) = variant
-        {
-            let common_obj = common_obj.get_or_insert_with(Box::<ObjectValidation>::default);
-
-            if let Some(variant_metadata) = variant_metadata {
-                // Move enum variant description from oneOf clause to its corresponding property
-                if let Some(description) = std::mem::take(&mut variant_metadata.description) {
-                    if let Some(Schema::Object(variant_object)) =
-                        only_item(variant_obj.properties.values_mut())
-                    {
-                        let metadata = variant_object
-                            .metadata
-                            .get_or_insert_with(Box::<Metadata>::default);
-                        metadata.description = Some(description);
-                    }
-                }
-            }
-
-            // Move all properties
-            let variant_properties = std::mem::take(&mut variant_obj.properties);
-            for (property_name, property) in variant_properties {
-                match common_obj.properties.entry(property_name) {
-                    Entry::Vacant(entry) => {
-                        entry.insert(property);
-                    }
-                    Entry::Occupied(entry) => {
-                        if &property != entry.get() {
-                            panic!("Property {:?} has the schema {:?} but was already defined as {:?} in another subschema. The schemas for a property used in multiple subschemas must be identical",
-                            entry.key(),
-                            &property,
-                            entry.get());
-                        }
-                    }
-                }
-            }
-
-            // Kubernetes doesn't allow variants to set additionalProperties
-            variant_obj.additional_properties = None;
-
-            merge_metadata(instance_type, variant_type.take());
-        } else if let Schema::Object(SchemaObject {
-            object: None,
-            instance_type: variant_type,
-            metadata,
-            ..
-        }) = variant
-        {
-            // Clear out the description and type to represent the empty `{}` variant
-            if *variant_type == Some(SingleOrVec::Single(Box::new(InstanceType::Object))) {
-                *variant_type = None;
-                *metadata = None;
-            }
-        }
-    }
-}
-
-/// Get the single item from an [Iterator].
-///
-/// Return None if the [Iterator] is empty or has more than one entry.
-fn only_item<I: Iterator>(mut i: I) -> Option<I::Item> {
-    let item = i.next()?;
-    if i.next().is_some() {
-        return None;
-    }
-    Some(item)
-}
-
-#[test]
-fn only_item_t() {
-    assert_eq!(only_item::<std::slice::Iter<'_, &str>>([].iter()), None);
-    assert_eq!(only_item(["one"].iter()), Some(&"one"));
-    assert_eq!(only_item(["one", "two"].iter()), None);
-}
-
-fn merge_metadata(
-    instance_type: &mut Option<SingleOrVec<InstanceType>>,
-    variant_type: Option<SingleOrVec<InstanceType>>,
-) {
-    match (instance_type, variant_type) {
-        (_, None) => {}
-        (common_type @ None, variant_type) => {
-            *common_type = variant_type;
-        }
-        (Some(common_type), Some(variant_type)) => {
-            if *common_type != variant_type {
-                panic!(
-                    "variant defined type {variant_type:?}, conflicting with existing type {common_type:?}"
-                );
             }
         }
     }

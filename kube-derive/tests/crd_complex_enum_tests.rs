@@ -266,11 +266,10 @@ fn untagged_enum() {
                                 "description": "An untagged enum with a nested enum inside",
                                 "properties": {
                                   "one": {
-                                    "description": "Used in case the `one` field of tpye [`u32`] is present",
                                     "type": "string"
                                   },
                                   "two": {
-                                    "description": "Used in case the `two` field of type [`NormalEnum`] is present",
+                                  "description": "A very simple enum with empty variants",
                                     "enum": [
                                       "C",
                                       "D",
@@ -356,11 +355,10 @@ fn optional_untagged_enum() {
                                 "nullable": true,
                                 "properties": {
                                   "one": {
-                                    "description": "Used in case the `one` field of tpye [`u32`] is present",
                                     "type": "string"
                                   },
                                   "two": {
-                                    "description": "Used in case the `two` field of type [`NormalEnum`] is present",
+                                  "description": "A very simple enum with empty variants",
                                     "enum": [
                                       "C",
                                       "D",
@@ -442,11 +440,10 @@ fn flattened_untagged_enum() {
                                 "description": "Put a [`UntaggedEnum`] behind `#[serde(flatten)]`",
                                 "properties": {
                                   "one": {
-                                    "description": "Used in case the `one` field of tpye [`u32`] is present",
                                     "type": "string"
                                   },
                                   "two": {
-                                    "description": "Used in case the `two` field of type [`NormalEnum`] is present",
+                                  "description": "A very simple enum with empty variants",
                                     "enum": [
                                       "C",
                                       "D",
