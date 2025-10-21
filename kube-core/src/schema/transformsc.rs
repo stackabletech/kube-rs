@@ -352,7 +352,7 @@ fn invalid_untagged_enum_with_conflicting_variant_fields_after_one_of_hosting() 
 /// - Each subschema has the type "object"
 ///
 /// NOTE: This should work regardless of whether other hoisting has been performed or not.
-fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObject) {
+pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObject) {
     // Run some initial checks in case there is nothing to do
     let SchemaObject {
         subschemas: Some(subschemas),

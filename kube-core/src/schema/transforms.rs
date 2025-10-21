@@ -68,7 +68,7 @@ fn tagged_enum_with_unit_variants() {
 /// - Each subschemas types is the same as the others
 ///
 /// NOTE: This should work regardless of whether other hoisting has been performed or not.
-fn hoist_one_of_enum_with_unit_variants(kube_schema: &mut SchemaObject) {
+pub(crate) fn hoist_one_of_enum_with_unit_variants(kube_schema: &mut SchemaObject) {
     // Run some initial checks in case there is nothing to do
     let SchemaObject {
         subschemas: Some(subschemas),

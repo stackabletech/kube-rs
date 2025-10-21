@@ -93,7 +93,7 @@ fn optional_tagged_enum_with_unit_variants() {
 /// - One subschema represents the `null` (has an enum with a null entry, and nullable set to true)
 ///
 /// NOTE: This should work regardless of whether other hoisting has been performed or not.
-fn hoist_any_of_subschema_with_a_nullable_variant(kube_schema: &mut SchemaObject) {
+pub(crate) fn hoist_any_of_subschema_with_a_nullable_variant(kube_schema: &mut SchemaObject) {
     // Run some initial checks in case there is nothing to do
     let SchemaObject {
         subschemas: Some(subschemas),
