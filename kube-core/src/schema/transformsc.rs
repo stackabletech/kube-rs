@@ -117,7 +117,7 @@ fn untagged_enum_with_empty_variant_before_one_of_hoisting() {
         serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
 
     let mut actual_converted_schema_object = original_schema_object.clone();
-    hoist_any_of_subschemas_with_properties_merged(&mut actual_converted_schema_object);
+    hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
 
     assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
 }
@@ -207,7 +207,7 @@ fn untagged_enum_with_duplicate_field_of_same_shape() {
         serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
 
     let mut actual_converted_schema_object = original_schema_object.clone();
-    hoist_any_of_subschemas_with_properties_merged(&mut actual_converted_schema_object);
+    hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
 
     assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
 }
@@ -282,7 +282,7 @@ fn invalid_untagged_enum_with_conflicting_variant_fields_before_one_of_hosting()
         serde_json::from_value(original_schema_object_value).expect("valid JSON");
 
     let mut actual_converted_schema_object = original_schema_object.clone();
-    hoist_any_of_subschemas_with_properties_merged(&mut actual_converted_schema_object);
+    hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
 }
 
 #[cfg(test)]
