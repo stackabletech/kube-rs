@@ -562,8 +562,12 @@ fn hoist_any_of_option_enum(incoming: SchemaObject) -> SchemaObject {
             .any_of
             .clone();
         // Bring across the properties, etc...
-        // Is this ok?
-        new_schema.object = to_hoist.object.clone();
+        // Is this ok? Or should we just replace properties with sub properties?
+        // Or should we carefully copy the property entries over in case there are existing entries?
+        // new_schema.object = to_hoist.object.clone();
+        if let Some(to_hoist_object) = &to_hoist.object {
+            new_schema.object.get_or_insert_default().properties = to_hoist_object.properties.clone();
+        }
     } else if to_hoist
         .subschemas
         .as_ref()
