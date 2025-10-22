@@ -223,85 +223,85 @@ fn untagged_enum() {
     assert_json_eq!(
         UntaggedEnumTest::crd(),
         json!(
-            {
-              "apiVersion": "apiextensions.k8s.io/v1",
-              "kind": "CustomResourceDefinition",
-              "metadata": {
-                "name": "untaggedenumtests.clux.dev"
+          {
+            "apiVersion": "apiextensions.k8s.io/v1",
+            "kind": "CustomResourceDefinition",
+            "metadata": {
+              "name": "untaggedenumtests.clux.dev"
+            },
+            "spec": {
+              "group": "clux.dev",
+              "names": {
+                "categories": [],
+                "kind": "UntaggedEnumTest",
+                "plural": "untaggedenumtests",
+                "shortNames": [],
+                "singular": "untaggedenumtest"
               },
-              "spec": {
-                "group": "clux.dev",
-                "names": {
-                  "categories": [],
-                  "kind": "UntaggedEnumTest",
-                  "plural": "untaggedenumtests",
-                  "shortNames": [],
-                  "singular": "untaggedenumtest"
-                },
-                "scope": "Cluster",
-                "versions": [
-                  {
-                    "additionalPrinterColumns": [],
-                    "name": "v1",
-                    "schema": {
-                      "openAPIV3Schema": {
-                        "description": "Auto-generated derived type for UntaggedEnumTestSpec via `CustomResource`",
-                        "properties": {
-                          "spec": {
-                            "properties": {
-                              "foo": {
-                                "anyOf": [
-                                  {
-                                    "required": [
-                                      "one"
-                                    ]
-                                  },
-                                  {
-                                    "required": [
-                                      "two"
-                                    ]
-                                  },
-                                  {}
-                                ],
-                                "description": "An untagged enum with a nested enum inside",
-                                "properties": {
-                                  "one": {
-                                    "type": "string"
-                                  },
-                                  "two": {
-                                  "description": "A very simple enum with empty variants",
-                                    "enum": [
-                                      "C",
-                                      "D",
-                                      "A",
-                                      "B"
-                                    ],
-                                    "type": "string"
-                                  }
+              "scope": "Cluster",
+              "versions": [
+                {
+                  "additionalPrinterColumns": [],
+                  "name": "v1",
+                  "schema": {
+                    "openAPIV3Schema": {
+                      "description": "Auto-generated derived type for UntaggedEnumTestSpec via `CustomResource`",
+                      "properties": {
+                        "spec": {
+                          "properties": {
+                            "foo": {
+                              "anyOf": [
+                                {
+                                  "required": [
+                                    "one"
+                                  ]
                                 },
-                                "type": "object"
-                              }
-                            },
-                            "required": [
-                              "foo"
-                            ],
-                            "type": "object"
-                          }
-                        },
-                        "required": [
-                          "spec"
-                        ],
-                        "title": "UntaggedEnumTest",
-                        "type": "object"
-                      }
-                    },
-                    "served": true,
-                    "storage": true,
-                    "subresources": {}
-                  }
-                ]
-              }
+                                {
+                                  "required": [
+                                    "two"
+                                  ]
+                                },
+                                {}
+                              ],
+                              "description": "An untagged enum with a nested enum inside",
+                              "properties": {
+                                "one": {
+                                  "type": "string"
+                                },
+                                "two": {
+                                  "description": "A very simple enum with empty variants",
+                                  "enum": [
+                                    "C",
+                                    "D",
+                                    "A",
+                                    "B"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "foo"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "spec"
+                      ],
+                      "title": "UntaggedEnumTest",
+                      "type": "object"
+                    }
+                  },
+                  "served": true,
+                  "storage": true,
+                  "subresources": {}
+                }
+              ]
             }
+          }
         )
     );
 }
@@ -311,83 +311,83 @@ fn optional_untagged_enum() {
     assert_json_eq!(
         OptionalUntaggedEnumTest::crd(),
         json!(
-            {
-              "apiVersion": "apiextensions.k8s.io/v1",
-              "kind": "CustomResourceDefinition",
-              "metadata": {
-                "name": "optionaluntaggedenumtests.clux.dev"
+          {
+            "apiVersion": "apiextensions.k8s.io/v1",
+            "kind": "CustomResourceDefinition",
+            "metadata": {
+              "name": "optionaluntaggedenumtests.clux.dev"
+            },
+            "spec": {
+              "group": "clux.dev",
+              "names": {
+                "categories": [],
+                "kind": "OptionalUntaggedEnumTest",
+                "plural": "optionaluntaggedenumtests",
+                "shortNames": [],
+                "singular": "optionaluntaggedenumtest"
               },
-              "spec": {
-                "group": "clux.dev",
-                "names": {
-                  "categories": [],
-                  "kind": "OptionalUntaggedEnumTest",
-                  "plural": "optionaluntaggedenumtests",
-                  "shortNames": [],
-                  "singular": "optionaluntaggedenumtest"
-                },
-                "scope": "Cluster",
-                "versions": [
-                  {
-                    "additionalPrinterColumns": [],
-                    "name": "v1",
-                    "schema": {
-                      "openAPIV3Schema": {
-                        "description": "Auto-generated derived type for OptionalUntaggedEnumTestSpec via `CustomResource`",
-                        "properties": {
-                          "spec": {
-                            "properties": {
-                              "foo": {
-                                "anyOf": [
-                                  {
-                                    "required": [
-                                      "one"
-                                    ]
-                                  },
-                                  {
-                                    "required": [
-                                      "two"
-                                    ]
-                                  },
-                                  {}
-                                ],
-                                "description": "An untagged enum with a nested enum inside",
-                                "nullable": true,
-                                "properties": {
-                                  "one": {
-                                    "type": "string"
-                                  },
-                                  "two": {
-                                  "description": "A very simple enum with empty variants",
-                                    "enum": [
-                                      "C",
-                                      "D",
-                                      "A",
-                                      "B"
-                                    ],
-                                    "type": "string"
-                                  }
+              "scope": "Cluster",
+              "versions": [
+                {
+                  "additionalPrinterColumns": [],
+                  "name": "v1",
+                  "schema": {
+                    "openAPIV3Schema": {
+                      "description": "Auto-generated derived type for OptionalUntaggedEnumTestSpec via `CustomResource`",
+                      "properties": {
+                        "spec": {
+                          "properties": {
+                            "foo": {
+                              "anyOf": [
+                                {
+                                  "required": [
+                                    "one"
+                                  ]
                                 },
-                                "type": "object"
-                              }
-                            },
-                            "type": "object"
-                          }
-                        },
-                        "required": [
-                          "spec"
-                        ],
-                        "title": "OptionalUntaggedEnumTest",
-                        "type": "object"
-                      }
-                    },
-                    "served": true,
-                    "storage": true,
-                    "subresources": {}
-                  }
-                ]
-              }
+                                {
+                                  "required": [
+                                    "two"
+                                  ]
+                                },
+                                {}
+                              ],
+                              "description": "An untagged enum with a nested enum inside",
+                              "nullable": true,
+                              "properties": {
+                                "one": {
+                                  "type": "string"
+                                },
+                                "two": {
+                                  "description": "A very simple enum with empty variants",
+                                  "enum": [
+                                    "C",
+                                    "D",
+                                    "A",
+                                    "B"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "spec"
+                      ],
+                      "title": "OptionalUntaggedEnumTest",
+                      "type": "object"
+                    }
+                  },
+                  "served": true,
+                  "storage": true,
+                  "subresources": {}
+                }
+              ]
             }
+          }
         )
     );
 }
@@ -397,85 +397,85 @@ fn flattened_untagged_enum() {
     assert_json_eq!(
         FlattenedUntaggedEnumTest::crd(),
         json!(
-            {
-              "apiVersion": "apiextensions.k8s.io/v1",
-              "kind": "CustomResourceDefinition",
-              "metadata": {
-                "name": "flatteneduntaggedenumtests.clux.dev"
+          {
+            "apiVersion": "apiextensions.k8s.io/v1",
+            "kind": "CustomResourceDefinition",
+            "metadata": {
+              "name": "flatteneduntaggedenumtests.clux.dev"
+            },
+            "spec": {
+              "group": "clux.dev",
+              "names": {
+                "categories": [],
+                "kind": "FlattenedUntaggedEnumTest",
+                "plural": "flatteneduntaggedenumtests",
+                "shortNames": [],
+                "singular": "flatteneduntaggedenumtest"
               },
-              "spec": {
-                "group": "clux.dev",
-                "names": {
-                  "categories": [],
-                  "kind": "FlattenedUntaggedEnumTest",
-                  "plural": "flatteneduntaggedenumtests",
-                  "shortNames": [],
-                  "singular": "flatteneduntaggedenumtest"
-                },
-                "scope": "Cluster",
-                "versions": [
-                  {
-                    "additionalPrinterColumns": [],
-                    "name": "v1",
-                    "schema": {
-                      "openAPIV3Schema": {
-                        "description": "Auto-generated derived type for FlattenedUntaggedEnumTestSpec via `CustomResource`",
-                        "properties": {
-                          "spec": {
-                            "properties": {
-                              "foo": {
-                                "anyOf": [
-                                  {
-                                    "required": [
-                                      "one"
-                                    ]
-                                  },
-                                  {
-                                    "required": [
-                                      "two"
-                                    ]
-                                  },
-                                  {}
-                                ],
-                                "description": "Put a [`UntaggedEnum`] behind `#[serde(flatten)]`",
-                                "properties": {
-                                  "one": {
-                                    "type": "string"
-                                  },
-                                  "two": {
-                                  "description": "A very simple enum with empty variants",
-                                    "enum": [
-                                      "C",
-                                      "D",
-                                      "A",
-                                      "B"
-                                    ],
-                                    "type": "string"
-                                  }
+              "scope": "Cluster",
+              "versions": [
+                {
+                  "additionalPrinterColumns": [],
+                  "name": "v1",
+                  "schema": {
+                    "openAPIV3Schema": {
+                      "description": "Auto-generated derived type for FlattenedUntaggedEnumTestSpec via `CustomResource`",
+                      "properties": {
+                        "spec": {
+                          "properties": {
+                            "foo": {
+                              "anyOf": [
+                                {
+                                  "required": [
+                                    "one"
+                                  ]
                                 },
-                                "type": "object"
-                              }
-                            },
-                            "required": [
-                              "foo"
-                            ],
-                            "type": "object"
-                          }
-                        },
-                        "required": [
-                          "spec"
-                        ],
-                        "title": "FlattenedUntaggedEnumTest",
-                        "type": "object"
-                      }
-                    },
-                    "served": true,
-                    "storage": true,
-                    "subresources": {}
-                  }
-                ]
-              }
+                                {
+                                  "required": [
+                                    "two"
+                                  ]
+                                },
+                                {}
+                              ],
+                              "description": "Put a [`UntaggedEnum`] behind `#[serde(flatten)]`",
+                              "properties": {
+                                "one": {
+                                  "type": "string"
+                                },
+                                "two": {
+                                  "description": "A very simple enum with empty variants",
+                                  "enum": [
+                                    "C",
+                                    "D",
+                                    "A",
+                                    "B"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "foo"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "spec"
+                      ],
+                      "title": "FlattenedUntaggedEnumTest",
+                      "type": "object"
+                    }
+                  },
+                  "served": true,
+                  "storage": true,
+                  "subresources": {}
+                }
+              ]
             }
+          }
         )
     );
 }
