@@ -83,14 +83,16 @@ fn optional_tagged_enum_with_unit_variants() {
 }
 
 
-/// Replace the schema with the non-null anyOf subschema when the only other subschema is the null schema.
+/// Replace the schema with the anyOf subschema and set to nullable when the
+/// only other subschema is the nullable entry.
 ///
 /// Used for correcting the schema for optional tagged unit enums.
 /// The non-null subschema is hoisted, and nullable will be set to true.
 ///
 /// This will return early without modifications unless:
-/// - There are exactly 2 `anyOf` subschemas
-/// - One subschema represents the `null` (has an enum with a null entry, and nullable set to true)
+/// - There are exactly 2 `anyOf` subschemas.
+/// - One subschema represents the nullability (ie: it has an enum with a single
+///   null entry, and nullable set to true).
 ///
 /// NOTE: This should work regardless of whether other hoisting has been performed or not.
 pub(crate) fn hoist_any_of_subschema_with_a_nullable_variant(kube_schema: &mut SchemaObject) {

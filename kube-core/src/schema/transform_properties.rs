@@ -1,6 +1,4 @@
-use std::ops::DerefMut;
-
-use crate::schema::{InstanceType, Schema, SchemaObject, SingleOrVec, SubschemaValidation};
+use crate::schema::{InstanceType, Schema, SchemaObject, SingleOrVec};
 
 #[cfg(test)]
 #[test]
@@ -342,13 +340,14 @@ fn invalid_untagged_enum_with_conflicting_variant_fields_after_one_of_hosting() 
     hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
 }
 
-/// Take subschema properties and insert them into the schema properties.
+/// Take oneOf or anyOf subschema properties and move them them into the schema
+/// properties.
 ///
 /// Used for correcting the schema for serde untagged structural enums.
-/// NOTE: Due to the nature of "untagging", enum variant doc-comments are not preserved.
+/// NOTE: Doc-comments are not preserved for untagged enums.
 ///
 /// This will return early without modifications unless:
-/// - There are `anyOf` subschemas
+/// - There are `oneOf` or `anyOf` subschemas
 /// - Each subschema has the type "object"
 ///
 /// NOTE: This should work regardless of whether other hoisting has been performed or not.
@@ -363,21 +362,23 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
         return;
     };
 
-    let SubschemaValidation {
-        any_of: Some(any_of),
-        one_of,
-    } = subschemas.deref_mut()
-    else {
-        return;
+    // Deal with both tagged and untagged enums.
+    // Untagged enum descriptions will not be preserved.
+    let (subschemas, preserve_description) = match (subschemas.any_of.as_mut(), subschemas.one_of.as_mut()) {
+        (None, None) => return,
+        (None, Some(one_of)) => (one_of, true),
+        (Some(any_of), None) => (any_of, false),
+        (Some(_), Some(_)) => panic!("oneOf and anyOf are mutually exclusive"),
     };
 
-    if any_of.is_empty() {
+
+    if subschemas.is_empty() {
         return;
     }
 
     // Ensure we aren't looking at the one with a null
     // TODO (@NickLarsenNZ): Combine the logic with the function that covers the nullable anyOf
-    if any_of.len() == 2 {
+    if subschemas.len() == 2 {
         // This is the signature for the null variant, indicating the "other"
         // variant is the subschema that needs hoisting
         let null = serde_json::json!({
@@ -386,7 +387,7 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
         });
 
         // Return if one of the two entries are nulls
-        for value in any_of
+        for value in subschemas
             .iter()
             .map(|x| serde_json::to_value(x).expect("schema should be able to convert to JSON"))
         {
@@ -399,29 +400,47 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
     // At this point, we can be reasonably sure we need operate on the schema.
     // TODO (@NickLarsenNZ): Return errors instead of panicking, leave panicking up to the infallible schemars::Transform
 
-    // There should not be any oneOf's adjacent to the anyOf
-    if one_of.is_some() {
-        panic!("oneOf is set when there is already an anyOf: {one_of:#?}");
-    }
-
-    let subschemas = any_of
+    let subschemas = subschemas
         .into_iter()
         .map(|schema| match schema {
             Schema::Object(schema_object) => schema_object,
-            Schema::Bool(_) => panic!("oneOf variants can not be of type boolean"),
+            Schema::Bool(_) => panic!("oneOf and anyOf variants cannot be of type boolean"),
         })
         .collect::<Vec<_>>();
 
     for subschema in subschemas {
-        // Drop description/type
         // This will clear out any objects that don't have required/properties fields (so that it appears as: {}).
-        subschema.metadata.take();
+        let metadata = subschema.metadata.take();
         subschema.instance_type.take();
 
         // Set the schema type to object
         kube_schema.instance_type = Some(SingleOrVec::Single(Box::new(InstanceType::Object)));
 
         if let Some(object) = subschema.object.as_deref_mut() {
+            // Kubernetes doesn't allow variants to set additionalProperties
+            object.additional_properties.take();
+
+            // For a tagged enum, we need to preserve the variant description
+            if preserve_description {
+                if object.properties.len() != 1 {
+                    // TODO (@NickLarsenNZ): Use assert_eq with error message (and in the other place)
+                    panic!("Expecting a subschema for a tagged enum variant, so there should only be one property");
+                }
+
+                if let Schema::Object(x) = object
+                    .properties
+                    .values_mut()
+                    .next()
+                    .expect("it's there, trust sbernauer")
+                {
+                    // I hope the new metadata doesn't have default set
+                    // I also hope that we didn't destroy some existing metadata.
+                    // Surely it would only exist in one or the other
+                    // See: https://github.com/kube-rs/kube/blob/98bfbe3d7923321a16ccde9e690fd2ce8c7efc32/kube-core/src/schema.rs#L409-L426
+                    x.metadata = metadata
+                };
+            }
+
             // If properties are set, hoist them to the schema properties.
             // This will panic if duplicate properties are encountered that do not have the same shape.
             // That can happen when the untagged enum variants each refer to structs which contain the same field name.

@@ -274,8 +274,6 @@ impl Transform for StructuralSchemaRewriter {
             None => return,
         };
 
-        dbg!(&schema);
-
         // Hoist parts of the schema to make it valid for k8s
         hoist_one_of_enum_with_unit_variants(&mut schema);
         hoist_any_of_subschema_with_a_nullable_variant(&mut schema);

@@ -53,13 +53,13 @@ fn print_crds() {
 }
 
 #[test]
-#[should_panic = "Enum variant set [String(\"A\")] has type Single(String) but was already defined as Some(Single(Object)). The instance type must be equal for all subschema variants."]
+#[should_panic = "oneOf variants must all have the same type"]
 fn invalid_enum_1() {
     InvalidEnum1::crd();
 }
 
 #[test]
-#[should_panic = "Enum variant set [String(\"A\")] has type Single(String) but was already defined as Some(Single(Object)). The instance type must be equal for all subschema variants."]
+#[should_panic = "oneOf variants must all have the same type"]
 fn invalid_enum_2() {
     InvalidEnum2::crd();
 }
@@ -222,7 +222,7 @@ fn valid_enum_4() {
 }
 
 #[test]
-#[should_panic = "Enum variant set [String(\"A\")] has type Single(String) but was already defined as Some(Single(Object)). The instance type must be equal for all subschema variants."]
+#[should_panic = "oneOf variants must all have the same type"]
 fn struct_with_enum_1() {
     #[derive(CustomResource, Serialize, Deserialize, Debug, Clone, JsonSchema)]
     #[kube(group = "clux.dev", version = "v1", kind = "Foo")]

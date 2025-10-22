@@ -56,18 +56,21 @@ fn tagged_enum_with_unit_variants() {
 }
 
 
-/// Replace a list of typed oneOf subschemas with a typed schema level enum
+/// Merge oneOf subschema enums and consts into a schema level enum.
 ///
 /// Used for correcting the schema for tagged enums with unit variants.
-/// NOTE: Subschema descriptions are lost when they are combined into a single enum of the same type.
+///
+/// NOTE: Subschema descriptions are lost when they are combined into a single
+/// enum of the same type.
 ///
 /// This will return early without modifications unless:
-/// - There are `oneOf` subschemas (not empty)
-/// - Each subschema contains an enum
-/// - Each subschema is typed
-/// - Each subschemas types is the same as the others
+/// - There are `oneOf` subschemas (not empty).
+/// - Each subschema contains an `enum` or `const`.
 ///
-/// NOTE: This should work regardless of whether other hoisting has been performed or not.
+/// Subschemas must define a type, and they must be the same for all.
+///
+/// NOTE: This should work regardless of whether other hoisting has been
+/// performed or not.
 pub(crate) fn hoist_one_of_enum_with_unit_variants(kube_schema: &mut SchemaObject) {
     // Run some initial checks in case there is nothing to do
     let SchemaObject {
@@ -113,19 +116,23 @@ pub(crate) fn hoist_one_of_enum_with_unit_variants(kube_schema: &mut SchemaObjec
 
     // For each `oneOf` entry, iterate over the `enum` and `const` values.
     // Panic on an entry that doesn't contain an `enum` or `const`.
-    let new_enums = one_of.iter().flat_map(|schema| match schema {
-        Schema::Object(SchemaObject {
-            enum_values: Some(r#enum),
-            ..
-        }) => r#enum.clone(),
-        // Warning: The `const` check below must come after the enum check above.
-        // Otherwise it will panic on a valid entry with an `enum`.
-        Schema::Object(SchemaObject { other, .. }) => match other.get("const") {
-            Some(r#const) => vec![r#const.clone()],
-            None => panic!("oneOf variant did not provide \"enum\" or \"const\": {schema:#?}"),
-        },
-        Schema::Bool(_) => panic!("oneOf variants can not be of type boolean"),
-    });
+    let new_enums = one_of
+        .iter()
+        .flat_map(|schema| match schema {
+            Schema::Object(SchemaObject {
+                enum_values: Some(r#enum),
+                ..
+            }) => r#enum.clone(),
+            Schema::Object(SchemaObject { other, .. }) => other.get("const").cloned().into_iter().collect(),
+            Schema::Bool(_) => panic!("oneOf variants can not be of type boolean"),
+        })
+        .collect::<Vec<_>>();
+
+    // If there are no enums in the oneOf subschemas, there is nothing more to do here.
+    if new_enums.is_empty() {
+        return;
+    }
+
     // Merge the enums (extend just to be safe)
     kube_schema.enum_values.get_or_insert_default().extend(new_enums);
 
