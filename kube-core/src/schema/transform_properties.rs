@@ -377,7 +377,6 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
     }
 
     // Ensure we aren't looking at the one with a null
-    // TODO (@NickLarsenNZ): Combine the logic with the function that covers the nullable anyOf
     if subschemas.len() == 2 {
         // This is the signature for the null variant, indicating the "other"
         // variant is the subschema that needs hoisting
@@ -422,28 +421,31 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
 
             // For a tagged enum, we need to preserve the variant description
             if preserve_description {
-                if object.properties.len() != 1 {
-                    // TODO (@NickLarsenNZ): Use assert_eq with error message (and in the other place)
-                    panic!("Expecting a subschema for a tagged enum variant, so there should only be one property");
-                }
+                assert_eq!(
+                    object.properties.len(),
+                    1,
+                    "Expecting only a single property defined for the tagged enum variant schema"
+                );
 
-                if let Schema::Object(x) = object
+                if let Schema::Object(subschema) = object
                     .properties
                     .values_mut()
                     .next()
-                    .expect("it's there, trust sbernauer")
+                    .expect("asserted that one and only one property exists")
                 {
-                    // I hope the new metadata doesn't have default set
-                    // I also hope that we didn't destroy some existing metadata.
-                    // Surely it would only exist in one or the other
-                    // See: https://github.com/kube-rs/kube/blob/98bfbe3d7923321a16ccde9e690fd2ce8c7efc32/kube-core/src/schema.rs#L409-L426
-                    x.metadata = metadata
+                    assert!(
+                        // While possible, it is unexpected if the subschema metadata is already set for the property
+                        subschema.metadata.is_none(),
+                        "subschema metadata for property should be empty"
+                    );
+                    // Move the variant description down to the properties (before they get hoisted)
+                    subschema.metadata = metadata
                 };
             }
 
             // If properties are set, hoist them to the schema properties.
             // This will panic if duplicate properties are encountered that do not have the same shape.
-            // That can happen when the untagged enum variants each refer to structs which contain the same field name.
+            // That can happen when the untagged enum variants each refer to structs which contain the same field name but with different types or doc-comments.
             // The developer needs to make them the same.
             // TODO (@NickLarsenNZ): Add a case for a structural variant, and a tuple variant containing a structure where the same field name is used.
             while let Some((property_name, Schema::Object(property_schema_object))) =
@@ -456,16 +458,13 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
                     .properties
                     .get(&property_name)
                 {
-                    if existing_property != &Schema::Object(property_schema_object.clone()) {
-                        // TODO (@NickLarsenNZ): Here we could do another check to see if it only differs by description.
-                        // If the schema property description is not set, then we could overwrite it and not panic.
-                        dbg!(
-                            &property_name,
-                            existing_property,
-                            &Schema::Object(property_schema_object.clone()),
-                        );
-                        panic!("Properties for {property_name:?} are defined multiple times with different shapes")
-                    }
+                    // TODO (@NickLarsenNZ): Here we could do another check to see if it only differs by description.
+                    // If the schema property description is not set, then we could overwrite it and not panic.
+                    assert_eq!(
+                        existing_property,
+                        &Schema::Object(property_schema_object.clone()),
+                        "Properties for {property_name:?} are defined multiple times with different shapes"
+                    );
                 } else {
                     // Otherwise, insert the subschema properties into the schema properties
                     parent_object
