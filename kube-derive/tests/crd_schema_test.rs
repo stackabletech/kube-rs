@@ -293,7 +293,6 @@ fn test_crd_schema_matches_expected() {
                                                 "default": "default_value",
                                                 "type": "string"
                                             },
-
                                             "nullableSkipped": {
                                                 "nullable": true,
                                                 "type": "string"
