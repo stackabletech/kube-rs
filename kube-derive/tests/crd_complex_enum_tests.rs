@@ -393,7 +393,7 @@ fn optional_enum_without_descriptions() {
                                   "B",
                                   "C",
                                   "D",
-                                  // Note there is *no* null list entry here
+                                  // Note there should be *no* null list entry here
                                 ],
                                 "nullable": true,
                                 "type": "string"
