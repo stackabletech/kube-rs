@@ -5,6 +5,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
+// Enum definitions
+
 /// A very simple enum with empty variants
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 enum NormalEnum {
@@ -16,6 +18,13 @@ enum NormalEnum {
     // No doc-comments on these variants
     C,
     D,
+}
+
+/// A complex enum with unit and struct variants
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+enum ComplexEnum {
+    Normal(NormalEnum),
+    Hardcore { hard: String, core: NormalEnum },
 }
 
 /// An untagged enum with a nested enum inside
@@ -37,6 +46,8 @@ struct FlattenedUntaggedEnum {
     inner: UntaggedEnum,
 }
 
+// CRD definitions
+
 #[derive(CustomResource, Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[kube(group = "clux.dev", version = "v1", kind = "NormalEnumTest")]
 struct NormalEnumTestSpec {
@@ -47,6 +58,18 @@ struct NormalEnumTestSpec {
 #[kube(group = "clux.dev", version = "v1", kind = "OptionalEnumTest")]
 struct OptionalEnumTestSpec {
     foo: Option<NormalEnum>,
+}
+
+#[derive(CustomResource, Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[kube(group = "clux.dev", version = "v1", kind = "ComplexEnumTest")]
+struct ComplexEnumTestSpec {
+    foo: ComplexEnum,
+}
+
+#[derive(CustomResource, Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[kube(group = "clux.dev", version = "v1", kind = "OptionalComplexEnumTest")]
+struct OptionalComplexEnumTestSpec {
+    foo: Option<ComplexEnum>,
 }
 
 #[derive(CustomResource, Serialize, Deserialize, Debug, Clone, JsonSchema)]
@@ -74,6 +97,13 @@ fn print_crds() {
     println!("{}", serde_yaml::to_string(&NormalEnumTest::crd()).unwrap());
     println!("---");
     println!("{}", serde_yaml::to_string(&OptionalEnumTest::crd()).unwrap());
+    println!("---");
+    println!("{}", serde_yaml::to_string(&ComplexEnumTest::crd()).unwrap());
+    println!("---");
+    println!(
+        "{}",
+        serde_yaml::to_string(&OptionalComplexEnumTest::crd()).unwrap()
+    );
     println!("---");
     println!("{}", serde_yaml::to_string(&UntaggedEnumTest::crd()).unwrap());
     println!("---");
@@ -216,6 +246,18 @@ fn optional_enum() {
           }
         )
     );
+}
+
+
+#[test]
+fn complex_enum() {
+    assert_json_eq!(ComplexEnumTest::crd(), json!(42));
+}
+
+
+#[test]
+fn optional_complex_enum() {
+    assert_json_eq!(OptionalComplexEnumTest::crd(), json!(42));
 }
 
 #[test]
