@@ -20,11 +20,23 @@ enum NormalEnum {
     D,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+pub enum NormalEnumWithoutDescriptions {
+    A,
+    B,
+    C,
+    D,
+}
+
 /// A complex enum with unit and struct variants
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 enum ComplexEnum {
     Normal(NormalEnum),
-    Hardcore { hard: String, core: NormalEnum },
+    Hardcore {
+        hard: String,
+        core: NormalEnum,
+        without_description: NormalEnumWithoutDescriptions,
+    },
 }
 
 /// An untagged enum with a nested enum inside
@@ -58,6 +70,26 @@ struct NormalEnumTestSpec {
 #[kube(group = "clux.dev", version = "v1", kind = "OptionalEnumTest")]
 struct OptionalEnumTestSpec {
     foo: Option<NormalEnum>,
+}
+
+#[derive(CustomResource, Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[kube(
+    group = "clux.dev",
+    version = "v1",
+    kind = "NormalEnumWithoutDescriptionsTest"
+)]
+struct NormalEnumWithoutDescriptionsTestSpec {
+    foo: NormalEnumWithoutDescriptions,
+}
+
+#[derive(CustomResource, Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[kube(
+    group = "clux.dev",
+    version = "v1",
+    kind = "OptionalEnumWithoutDescriptionsTest"
+)]
+struct OptionalEnumWithoutDescriptionsTestSpec {
+    foo: Option<NormalEnumWithoutDescriptions>,
 }
 
 #[derive(CustomResource, Serialize, Deserialize, Debug, Clone, JsonSchema)]
@@ -97,6 +129,16 @@ fn print_crds() {
     println!("{}", serde_yaml::to_string(&NormalEnumTest::crd()).unwrap());
     println!("---");
     println!("{}", serde_yaml::to_string(&OptionalEnumTest::crd()).unwrap());
+    println!("---");
+    println!(
+        "{}",
+        serde_yaml::to_string(&NormalEnumWithoutDescriptionsTest::crd()).unwrap()
+    );
+    println!("---");
+    println!(
+        "{}",
+        serde_yaml::to_string(&OptionalEnumWithoutDescriptionsTest::crd()).unwrap()
+    );
     println!("---");
     println!("{}", serde_yaml::to_string(&ComplexEnumTest::crd()).unwrap());
     println!("---");
@@ -248,6 +290,135 @@ fn optional_enum() {
     );
 }
 
+
+#[test]
+fn normal_enum_without_descriptions() {
+    assert_json_eq!(
+        NormalEnumWithoutDescriptionsTest::crd(),
+        json!(
+            {
+              "apiVersion": "apiextensions.k8s.io/v1",
+              "kind": "CustomResourceDefinition",
+              "metadata": {
+                "name": "normalenumwithoutdescriptionstests.clux.dev"
+              },
+              "spec": {
+                "group": "clux.dev",
+                "names": {
+                  "categories": [],
+                  "kind": "NormalEnumWithoutDescriptionsTest",
+                  "plural": "normalenumwithoutdescriptionstests",
+                  "shortNames": [],
+                  "singular": "normalenumwithoutdescriptionstest"
+                },
+                "scope": "Cluster",
+                "versions": [
+                  {
+                    "additionalPrinterColumns": [],
+                    "name": "v1",
+                    "schema": {
+                      "openAPIV3Schema": {
+                        "description": "Auto-generated derived type for NormalEnumWithoutDescriptionsTestSpec via `CustomResource`",
+                        "properties": {
+                          "spec": {
+                            "properties": {
+                              "foo": {
+                                "enum": [
+                                  "A",
+                                  "B",
+                                  "C",
+                                  "D"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "foo"
+                            ],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "spec"
+                        ],
+                        "title": "NormalEnumWithoutDescriptionsTest",
+                        "type": "object"
+                      }
+                    },
+                    "served": true,
+                    "storage": true,
+                    "subresources": {}
+                  }
+                ]
+              }
+            }
+        )
+    );
+}
+
+#[test]
+fn optional_enum_without_descriptions() {
+    assert_json_eq!(
+        OptionalEnumWithoutDescriptionsTest::crd(),
+        json!(
+            {
+              "apiVersion": "apiextensions.k8s.io/v1",
+              "kind": "CustomResourceDefinition",
+              "metadata": {
+                "name": "optionalenumwithoutdescriptionstests.clux.dev"
+              },
+              "spec": {
+                "group": "clux.dev",
+                "names": {
+                  "categories": [],
+                  "kind": "OptionalEnumWithoutDescriptionsTest",
+                  "plural": "optionalenumwithoutdescriptionstests",
+                  "shortNames": [],
+                  "singular": "optionalenumwithoutdescriptionstest"
+                },
+                "scope": "Cluster",
+                "versions": [
+                  {
+                    "additionalPrinterColumns": [],
+                    "name": "v1",
+                    "schema": {
+                      "openAPIV3Schema": {
+                        "description": "Auto-generated derived type for OptionalEnumWithoutDescriptionsTestSpec via `CustomResource`",
+                        "properties": {
+                          "spec": {
+                            "properties": {
+                              "foo": {
+                                "enum": [
+                                  "A",
+                                  "B",
+                                  "C",
+                                  "D",
+                                  // Note there is *no* null list entry here
+                                ],
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "spec"
+                        ],
+                        "title": "OptionalEnumWithoutDescriptionsTest",
+                        "type": "object"
+                      }
+                    },
+                    "served": true,
+                    "storage": true,
+                    "subresources": {}
+                  }
+                ]
+              }
+            }
+        )
+    );
+}
 
 #[test]
 fn complex_enum() {
