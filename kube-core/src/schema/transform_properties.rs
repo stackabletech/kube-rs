@@ -1,4 +1,4 @@
-use crate::schema::{InstanceType, Schema, SchemaObject, SingleOrVec};
+use crate::schema::{InstanceType, Metadata, Schema, SchemaObject, SingleOrVec};
 
 #[cfg(test)]
 #[test]
