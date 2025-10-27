@@ -425,13 +425,215 @@ fn optional_enum_without_descriptions() {
 
 #[test]
 fn complex_enum() {
-    assert_json_eq!(ComplexEnumTest::crd(), json!(42));
+    assert_json_eq!(
+        ComplexEnumTest::crd(),
+        json!(
+          {
+            "apiVersion": "apiextensions.k8s.io/v1",
+            "kind": "CustomResourceDefinition",
+            "metadata": {
+              "name": "complexenumtests.clux.dev"
+            },
+            "spec": {
+              "group": "clux.dev",
+              "names": {
+                "categories": [],
+                "kind": "ComplexEnumTest",
+                "plural": "complexenumtests",
+                "shortNames": [],
+                "singular": "complexenumtest"
+              },
+              "scope": "Cluster",
+              "versions": [
+                {
+                  "additionalPrinterColumns": [],
+                  "name": "v1",
+                  "schema": {
+                    "openAPIV3Schema": {
+                      "description": "Auto-generated derived type for ComplexEnumTestSpec via `CustomResource`",
+                      "properties": {
+                        "spec": {
+                          "properties": {
+                            "foo": {
+                              "description": "A complex enum with tuple and struct variants",
+                              "oneOf": [
+                                {
+                                  "required": [
+                                    "Normal"
+                                  ]
+                                },
+                                {
+                                  "required": [
+                                    "Hardcore"
+                                  ]
+                                }
+                              ],
+                              "properties": {
+                                "Hardcore": {
+                                  "description": "Documentation on the Hardcore variant",
+                                  "properties": {
+                                    "core": {
+                                      "description": "A very simple enum with unit variants",
+                                      "enum": [
+                                        "C",
+                                        "D",
+                                        "A",
+                                        "B"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "hard": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "core",
+                                    "hard"
+                                  ],
+                                  "type": "object"
+                                },
+                                "Normal": {
+                                  "description": "Override documentation on the Normal variant",
+                                  "enum": [
+                                    "C",
+                                    "D",
+                                    "A",
+                                    "B"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "foo"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "spec"
+                      ],
+                      "title": "ComplexEnumTest",
+                      "type": "object"
+                    }
+                  },
+                  "served": true,
+                  "storage": true,
+                  "subresources": {}
+                }
+              ]
+            }
+          }
+        )
+    );
 }
 
 
 #[test]
 fn optional_complex_enum() {
-    assert_json_eq!(OptionalComplexEnumTest::crd(), json!(42));
+    assert_json_eq!(
+        OptionalComplexEnumTest::crd(),
+        json!(
+          {
+            "apiVersion": "apiextensions.k8s.io/v1",
+            "kind": "CustomResourceDefinition",
+            "metadata": {
+              "name": "optionalcomplexenumtests.clux.dev"
+            },
+            "spec": {
+              "group": "clux.dev",
+              "names": {
+                "categories": [],
+                "kind": "OptionalComplexEnumTest",
+                "plural": "optionalcomplexenumtests",
+                "shortNames": [],
+                "singular": "optionalcomplexenumtest"
+              },
+              "scope": "Cluster",
+              "versions": [
+                {
+                  "additionalPrinterColumns": [],
+                  "name": "v1",
+                  "schema": {
+                    "openAPIV3Schema": {
+                      "description": "Auto-generated derived type for OptionalComplexEnumTestSpec via `CustomResource`",
+                      "properties": {
+                        "spec": {
+                          "properties": {
+                            "foo": {
+                              "description": "A complex enum with tuple and struct variants",
+                              "nullable": true,
+                              "oneOf": [
+                                {
+                                  "required": [
+                                    "Normal"
+                                  ]
+                                },
+                                {
+                                  "required": [
+                                    "Hardcore"
+                                  ]
+                                }
+                              ],
+                              "properties": {
+                                "Hardcore": {
+                                  "description": "Documentation on the Hardcore variant",
+                                  "properties": {
+                                    "core": {
+                                      "description": "A very simple enum with unit variants",
+                                      "enum": [
+                                        "C",
+                                        "D",
+                                        "A",
+                                        "B"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "hard": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "core",
+                                    "hard"
+                                  ],
+                                  "type": "object"
+                                },
+                                "Normal": {
+                                  "description": "Override documentation on the Normal variant",
+                                  "enum": [
+                                    "C",
+                                    "D",
+                                    "A",
+                                    "B"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "spec"
+                      ],
+                      "title": "OptionalComplexEnumTest",
+                      "type": "object"
+                    }
+                  },
+                  "served": true,
+                  "storage": true,
+                  "subresources": {}
+                }
+              ]
+            }
+          }
+        )
+    );
 }
 
 #[test]
