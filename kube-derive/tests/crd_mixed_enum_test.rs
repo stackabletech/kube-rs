@@ -269,8 +269,6 @@ fn valid_enum_4() {
 fn invalid_enum_5() {
     InvalidEnum5::crd();
 }
-
-
 #[test]
 fn valid_enum_6() {
     assert_json_eq!(

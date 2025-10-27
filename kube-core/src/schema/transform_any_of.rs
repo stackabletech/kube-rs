@@ -214,6 +214,5 @@ pub(crate) fn hoist_any_of_subschema_with_a_nullable_variant(kube_schema: &mut S
     *kube_schema = to_hoist;
 
     // Set the schema to nullable (as we know we matched the null variant earlier)
-    // TODO (@NickLarsenNZ): Do we need to insert `nullable` into `other` too?
     kube_schema.extensions.insert("nullable".to_owned(), true.into());
 }
