@@ -155,8 +155,15 @@ pub(crate) fn hoist_any_of_subschema_with_a_nullable_variant(kube_schema: &mut S
         panic!("oneOf is set when there is already an anyOf: {one_of:#?}");
     }
 
+    let mut to_hoist = to_hoist.clone();
+    let kube_schema_metadata = kube_schema.metadata.take();
+
+    if to_hoist.metadata.is_none() {
+        to_hoist.metadata = kube_schema_metadata;
+    }
+
     // Replace the schema with the non-null subschema
-    *kube_schema = to_hoist.clone();
+    *kube_schema = to_hoist;
 
     // Set the schema to nullable (as we know we matched the null variant earlier)
     // TODO (@NickLarsenNZ): Do we need to insert `nullable` into `other` too?

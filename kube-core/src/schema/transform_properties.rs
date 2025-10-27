@@ -371,7 +371,6 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
         (Some(_), Some(_)) => panic!("oneOf and anyOf are mutually exclusive"),
     };
 
-
     if subschemas.is_empty() {
         return;
     }
@@ -419,23 +418,11 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
             // Kubernetes doesn't allow variants to set additionalProperties
             object.additional_properties.take();
 
-            // For a tagged enum, we need to preserve the variant description
+            // For a tagged enum (oneOf), we need to preserve the variant description
             if preserve_description {
-                assert_eq!(
-                    object.properties.len(),
-                    1,
-                    "Expecting only a single property defined for the tagged enum variant schema"
-                );
-
-                if let Schema::Object(subschema) = object
-                    .properties
-                    .values_mut()
-                    .next()
-                    .expect("asserted that one and only one property exists")
-                {
+                if let Some(Schema::Object(subschema)) = object.properties.values_mut().next() {
                     if let Some(Metadata {
-                        description: Some(_d),
-                        ..
+                        description: Some(_), ..
                     }) = metadata.as_deref()
                     {
                         subschema.metadata = metadata
