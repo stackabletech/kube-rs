@@ -4,6 +4,7 @@
 
 mod transform_any_of;
 mod transform_one_of;
+mod transform_optional_enum_with_null;
 mod transform_properties;
 
 // Used in docs
@@ -13,6 +14,7 @@ use schemars::{transform::Transform, JsonSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
+use transform_optional_enum_with_null::remove_optional_enum_null_variant;
 
 use crate::schema::{
     transform_any_of::hoist_any_of_subschema_with_a_nullable_variant,
@@ -278,6 +280,7 @@ impl Transform for StructuralSchemaRewriter {
         hoist_one_of_enum_with_unit_variants(&mut schema);
         hoist_any_of_subschema_with_a_nullable_variant(&mut schema);
         hoist_properties_for_any_of_subschemas(&mut schema);
+        remove_optional_enum_null_variant(&mut schema);
 
         // check for maps without with properties (i.e. flattened maps)
         // and allow these to persist dynamically
