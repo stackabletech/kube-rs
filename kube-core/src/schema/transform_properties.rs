@@ -433,13 +433,13 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
                     .next()
                     .expect("asserted that one and only one property exists")
                 {
-                    assert!(
-                        // While possible, it is unexpected if the subschema metadata is already set for the property
-                        subschema.metadata.is_none(),
-                        "subschema metadata for property should be empty"
-                    );
-                    // Move the variant description down to the properties (before they get hoisted)
-                    subschema.metadata = metadata
+                    if let Some(Metadata {
+                        description: Some(_d),
+                        ..
+                    }) = metadata.as_deref()
+                    {
+                        subschema.metadata = metadata
+                    }
                 };
             }
 

@@ -28,7 +28,7 @@ pub enum NormalEnumWithoutDescriptions {
     D,
 }
 
-/// A complex enum with unit and struct variants
+/// A complex enum with tuple and struct variants
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 enum ComplexEnum {
     /// Override documentation on the Normal variant
@@ -484,11 +484,21 @@ fn complex_enum() {
                                     },
                                     "hard": {
                                       "type": "string"
+                                    },
+                                    "without_description": {
+                                      "enum": [
+                                        "A",
+                                        "B",
+                                        "C",
+                                        "D"
+                                      ],
+                                      "type": "string"
                                     }
                                   },
                                   "required": [
                                     "core",
-                                    "hard"
+                                    "hard",
+                                    "without_description"
                                   ],
                                   "type": "object"
                                 },
@@ -593,11 +603,21 @@ fn optional_complex_enum() {
                                     },
                                     "hard": {
                                       "type": "string"
+                                    },
+                                    "without_description": {
+                                      "enum": [
+                                        "A",
+                                        "B",
+                                        "C",
+                                        "D"
+                                      ],
+                                      "type": "string"
                                     }
                                   },
                                   "required": [
                                     "core",
-                                    "hard"
+                                    "hard",
+                                    "without_description"
                                   ],
                                   "type": "object"
                                 },
