@@ -54,11 +54,12 @@ pub(crate) fn remove_optional_enum_null_variant(kube_schema: &mut SchemaObject) 
 
     // It only makes sense to remove `null` enum values in case the enum is
     // nullable (thus optional).
-    if let Some(Value::Bool(true)) = extensions.get("nullable")
+    if let Some(Value::Bool(true)) = extensions.get("nullable") {
         // Don't remove the single last enum variant. This often happens for
         // `Option<XXX>`, which is represented as
         // `"anyOf": [XXX, {"enum": [null], "optional": true}]`
-        && enum_values.len() > 1 {
+        if enum_values.len() > 1 {
             enum_values.retain(|enum_value| enum_value != &Value::Null);
+        }
     }
 }

@@ -7,7 +7,7 @@ use serde_json::json;
 
 // Enum definitions
 
-/// A very simple enum with empty variants
+/// A very simple enum with unit variants
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 enum NormalEnum {
     /// First variant
@@ -31,7 +31,10 @@ pub enum NormalEnumWithoutDescriptions {
 /// A complex enum with unit and struct variants
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 enum ComplexEnum {
+    /// Override documentation on the Normal variant
     Normal(NormalEnum),
+
+    /// Documentation on the Hardcore variant
     Hardcore {
         hard: String,
         core: NormalEnum,
@@ -43,7 +46,7 @@ enum ComplexEnum {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(untagged)]
 enum UntaggedEnum {
-    /// Used in case the `one` field of tpye [`u32`] is present
+    /// Used in case the `one` field of type [`u32`] is present
     A { one: String },
     /// Used in case the `two` field of type [`NormalEnum`] is present
     B { two: NormalEnum },
@@ -192,7 +195,7 @@ fn normal_enum() {
                         "spec": {
                           "properties": {
                             "foo": {
-                              "description": "A very simple enum with empty variants",
+                              "description": "A very simple enum with unit variants",
                               "enum": [
                                 "C",
                                 "D",
@@ -258,7 +261,7 @@ fn optional_enum() {
                         "spec": {
                           "properties": {
                             "foo": {
-                              "description": "A very simple enum with empty variants",
+                              "description": "A very simple enum with unit variants",
                               "enum": [
                                 "C",
                                 "D",
@@ -482,7 +485,7 @@ fn untagged_enum() {
                                   "type": "string"
                                 },
                                 "two": {
-                                  "description": "A very simple enum with empty variants",
+                                  "description": "A very simple enum with unit variants",
                                   "enum": [
                                     "C",
                                     "D",
@@ -571,7 +574,7 @@ fn optional_untagged_enum() {
                                   "type": "string"
                                 },
                                 "two": {
-                                  "description": "A very simple enum with empty variants",
+                                  "description": "A very simple enum with unit variants",
                                   "enum": [
                                     "C",
                                     "D",
@@ -656,7 +659,7 @@ fn flattened_untagged_enum() {
                                   "type": "string"
                                 },
                                 "two": {
-                                  "description": "A very simple enum with empty variants",
+                                  "description": "A very simple enum with unit variants",
                                   "enum": [
                                     "C",
                                     "D",
