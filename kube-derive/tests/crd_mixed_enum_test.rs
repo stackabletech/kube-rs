@@ -43,6 +43,49 @@ enum ValidEnum4Spec {
     B { inner: u32 },
 }
 
+/// This enum is invalid, as the types of the `inner` fields differ.
+#[derive(CustomResource, Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[kube(group = "clux.dev", version = "v1", kind = "InvalidEnum5")]
+#[serde(untagged)]
+enum InvalidEnum5Spec {
+    A { inner: String },
+    B { inner: u32 },
+}
+
+/// This enum is valid, as the `inner` fields are the same.
+#[derive(CustomResource, Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[kube(group = "clux.dev", version = "v1", kind = "ValidEnum6")]
+#[serde(untagged)]
+enum ValidEnum6Spec {
+    B {
+        /// The inner fields need to have the same schema (so also same description)
+        inner: u32,
+        /// An additional field
+        additional: String,
+    },
+    A {
+        /// The inner fields need to have the same schema (so also same description)
+        inner: u32,
+    },
+}
+
+/// This enum is invalid, as the typed of `inner` fields are the same, *but* the description (which
+/// is part of the schema differs).
+#[derive(CustomResource, Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[kube(group = "clux.dev", version = "v1", kind = "InvalidEnum7")]
+#[serde(untagged)]
+enum InvalidEnum7Spec {
+    B {
+        /// The inner fields need to have the same schema (so also same description)
+        inner: u32,
+        additional: String,
+    },
+    A {
+        /// This description differs!
+        inner: u32,
+    },
+}
+
 /// Use `cargo test --package kube-derive print_crds -- --nocapture` to get the CRDs as YAML.
 /// Afterwards you can use `kubectl apply -f -` to see if they are valid CRDs.
 #[test]
@@ -219,6 +262,96 @@ fn valid_enum_4() {
           }
         )
     );
+}
+
+#[test]
+#[should_panic = "Properties for \"inner\" are defined multiple times with different shapes"]
+fn invalid_enum_5() {
+    InvalidEnum5::crd();
+}
+
+
+#[test]
+fn valid_enum_6() {
+    assert_json_eq!(
+        ValidEnum6::crd(),
+        json!(
+            {
+              "apiVersion": "apiextensions.k8s.io/v1",
+              "kind": "CustomResourceDefinition",
+              "metadata": {
+                "name": "validenum6s.clux.dev"
+              },
+              "spec": {
+                "group": "clux.dev",
+                "names": {
+                  "categories": [],
+                  "kind": "ValidEnum6",
+                  "plural": "validenum6s",
+                  "shortNames": [],
+                  "singular": "validenum6"
+                },
+                "scope": "Cluster",
+                "versions": [
+                  {
+                    "additionalPrinterColumns": [],
+                    "name": "v1",
+                    "schema": {
+                      "openAPIV3Schema": {
+                        "description": "Auto-generated derived type for ValidEnum6Spec via `CustomResource`",
+                        "properties": {
+                          "spec": {
+                            "anyOf": [
+                              {
+                                "required": [
+                                  "additional",
+                                  "inner"
+                                ]
+                              },
+                              {
+                                "required": [
+                                  "inner"
+                                ]
+                              }
+                            ],
+                            "description": "This enum is valid, as the `inner` fields are the same.",
+                            "properties": {
+                              "additional": {
+                                "description": "An additional field",
+                                "type": "string"
+                              },
+                              "inner": {
+                                "description": "The inner fields need to have the same schema (so also same description)",
+                                "format": "uint32",
+                                "minimum": 0.0,
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "spec"
+                        ],
+                        "title": "ValidEnum6",
+                        "type": "object"
+                      }
+                    },
+                    "served": true,
+                    "storage": true,
+                    "subresources": {}
+                  }
+                ]
+              }
+            }
+        )
+    );
+}
+
+#[test]
+#[should_panic = "Properties for \"inner\" are defined multiple times with different shapes"]
+fn invalid_enum_7() {
+    InvalidEnum7::crd();
 }
 
 #[test]
