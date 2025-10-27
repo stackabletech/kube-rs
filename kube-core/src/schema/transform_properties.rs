@@ -26,7 +26,7 @@ fn untagged_enum_with_empty_variant_before_one_of_hoisting() {
                 ],
                 "properties": {
                     "two": {
-                        "description": "A very simple enum with empty variants",
+                        "description": "A very simple enum with unit variants",
                         "oneOf": [
                             {
                                 "type": "string",
@@ -81,7 +81,7 @@ fn untagged_enum_with_empty_variant_before_one_of_hoisting() {
                 "type": "string"
             },
             "two": {
-                "description": "A very simple enum with empty variants",
+                "description": "A very simple enum with unit variants",
                 "oneOf": [
                     {
                         "type": "string",
@@ -241,7 +241,7 @@ fn invalid_untagged_enum_with_conflicting_variant_fields_before_one_of_hosting()
                 ],
                 "properties": {
                     "two": {
-                        "description": "A very simple enum with empty variants",
+                        "description": "A very simple enum with unit variants",
                         "oneOf": [
                             {
                                 "type": "string",
@@ -315,7 +315,7 @@ fn invalid_untagged_enum_with_conflicting_variant_fields_after_one_of_hosting() 
                 ],
                 "properties": {
                     "two": {
-                        "description": "A very simple enum with empty variants",
+                        "description": "A very simple enum with unit variants",
                         "type": "string",
                         "enum": [
                             "C",
@@ -400,7 +400,7 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
     // TODO (@NickLarsenNZ): Return errors instead of panicking, leave panicking up to the infallible schemars::Transform
 
     let subschemas = subschemas
-        .into_iter()
+        .iter_mut()
         .map(|schema| match schema {
             Schema::Object(schema_object) => schema_object,
             Schema::Bool(_) => panic!("oneOf and anyOf variants cannot be of type boolean"),

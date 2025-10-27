@@ -128,7 +128,8 @@ pub(crate) fn hoist_one_of_enum_with_unit_variants(kube_schema: &mut SchemaObjec
         })
         .collect::<Vec<_>>();
 
-    // If there are no enums in the oneOf subschemas, there is nothing more to do here.
+    // If there are no enums (or consts converted to enums) in the oneOf subschemas, there is nothing more to do here.
+    // For example, when the schema has `properties` and `required`, so we leave that for the properties hoister.
     if new_enums.is_empty() {
         return;
     }

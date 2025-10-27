@@ -91,8 +91,8 @@ fn optional_tagged_enum_with_unit_variants() {
 ///
 /// This will return early without modifications unless:
 /// - There are exactly 2 `anyOf` subschemas.
-/// - One subschema represents the nullability (ie: it has an enum with a single
-///   null entry, and nullable set to true).
+/// - One subschema represents the nullability (ie: it has an `enum` with a single
+///   `null` entry, and `nullable` set to true).
 ///
 /// NOTE: This should work regardless of whether other hoisting has been performed or not.
 pub(crate) fn hoist_any_of_subschema_with_a_nullable_variant(kube_schema: &mut SchemaObject) {
