@@ -193,8 +193,6 @@ fn tagged_enum_with_stuct_and_tuple_variants_before_one_of_hoisting() {
 #[cfg(test)]
 #[test]
 fn tagged_enum_with_stuct_and_tuple_variants_after_one_of_hoisting() {
-    use serde_json::json;
-
     let original_schema_object_value = serde_json::json!({
         "description": "A complex tagged enum with unit and struct variants",
         "oneOf": [

@@ -258,11 +258,6 @@ enum SingleOrVec<T> {
     Vec(Vec<T>),
 }
 
-#[cfg(test)]
-fn schemars_schema_to_kube_schema(incoming: schemars::Schema) -> Result<Schema, serde_json::Error> {
-    serde_json::from_value(incoming.to_value())
-}
-
 impl Transform for StructuralSchemaRewriter {
     fn transform(&mut self, transform_schema: &mut schemars::Schema) {
         // Apply this (self) transform to all subschemas
