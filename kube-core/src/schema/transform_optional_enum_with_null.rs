@@ -15,12 +15,14 @@ pub(crate) fn remove_optional_enum_null_variant(kube_schema: &mut SchemaObject) 
         return;
     };
 
-    // It only makes sense to remove `null` enum values in case the enum is
-    // nullable (thus optional).
+    // It only makes sense to remove `null` enum values in case the enum is nullable (thus optional)
+    // This is a safety mechanism, "nullable" should always be set to true, if one enum variant is
+    // null.
     if let Some(Value::Bool(true)) = extensions.get("nullable") {
-        // Don't remove the single last enum variant. This often happens for
-        // `Option<XXX>`, which is represented as
-        // `"anyOf": [XXX, {"enum": [null], "optional": true}]`
+        // Don't remove the single last enum variant. This often happens for `Option<XXX>`, which is
+        // represented as `"anyOf": [XXX, {"enum": [null], "optional": true}]`.
+        // We need to keep `"enum": [null]` (as opposed to `"enum": []`), because other hoisting
+        // code uses `kube::core::NULL_SCHEMA` to detect null variants.
         if enum_values.len() > 1 {
             enum_values.retain(|enum_value| enum_value != &Value::Null);
         }
@@ -29,6 +31,8 @@ pub(crate) fn remove_optional_enum_null_variant(kube_schema: &mut SchemaObject) 
 
 #[cfg(test)]
 mod tests {
+    use assert_json_diff::assert_json_eq;
+
     use super::*;
 
     #[test]
@@ -64,6 +68,6 @@ mod tests {
         let mut actual_converted_schema_object = original_schema_object.clone();
         remove_optional_enum_null_variant(&mut actual_converted_schema_object);
 
-        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+        assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
     }
 }

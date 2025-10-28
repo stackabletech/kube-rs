@@ -1,4 +1,4 @@
-use crate::schema::{InstanceType, Metadata, Schema, SchemaObject, SingleOrVec};
+use crate::schema::{InstanceType, Metadata, Schema, SchemaObject, SingleOrVec, NULL_SCHEMA};
 
 /// Take oneOf or anyOf subschema properties and move them them into the schema
 /// properties.
@@ -35,28 +35,21 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
         return;
     }
 
-    // Ensure we aren't looking at the one with a null
+    // Ensure we aren't looking at the one with a null, as that is hoisted by another transformer
     if subschemas.len() == 2 {
-        // This is the signature for the null variant, indicating the "other"
-        // variant is the subschema that needs hoisting
-        let null = serde_json::json!({
-            "enum": [null],
-            "nullable": true
-        });
-
-        // Return if one of the two entries are nulls
-        for value in subschemas
+        // Return if there is a null entry
+        if subschemas
             .iter()
             .map(|x| serde_json::to_value(x).expect("schema should be able to convert to JSON"))
+            .any(|x| x == *NULL_SCHEMA)
         {
-            if value == null {
-                return;
-            }
+            return;
         }
     }
 
     // At this point, we can be reasonably sure we need operate on the schema.
-    // TODO (@NickLarsenNZ): Return errors instead of panicking, leave panicking up to the infallible schemars::Transform
+    // TODO (@NickLarsenNZ): Return errors instead of panicking, leave panicking up to the
+    // infallible schemars::Transform
 
     let subschemas = subschemas
         .iter_mut()
@@ -67,7 +60,8 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
         .collect::<Vec<_>>();
 
     for subschema in subschemas {
-        // This will clear out any objects that don't have required/properties fields (so that it appears as: {}).
+        // This will clear out any objects that don't have required/properties fields (so that it
+        // appears as: {}).
         let metadata = subschema.metadata.take();
         subschema.instance_type.take();
 
@@ -91,10 +85,12 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
             }
 
             // If properties are set, hoist them to the schema properties.
-            // This will panic if duplicate properties are encountered that do not have the same shape.
-            // That can happen when the untagged enum variants each refer to structs which contain the same field name but with different types or doc-comments.
+            // This will panic if duplicate properties are encountered that do not have the same
+            // shape. That can happen when the untagged enum variants each refer to structs which
+            // contain the same field name but with different types or doc-comments.
             // The developer needs to make them the same.
-            // TODO (@NickLarsenNZ): Add a case for a structural variant, and a tuple variant containing a structure where the same field name is used.
+            // TODO (@NickLarsenNZ): Add a case for a structural variant, and a tuple variant
+            // containing a structure where the same field name is used.
             while let Some((property_name, Schema::Object(property_schema_object))) =
                 object.properties.pop_first()
             {
@@ -105,8 +101,9 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
                     .properties
                     .get(&property_name)
                 {
-                    // TODO (@NickLarsenNZ): Here we could do another check to see if it only differs by description.
-                    // If the schema property description is not set, then we could overwrite it and not panic.
+                    // TODO (@NickLarsenNZ): Here we could do another check to see if it only
+                    // differs by description. If the schema property description is not set, then
+                    // we could overwrite it and not panic.
                     assert_eq!(
                         existing_property,
                         &Schema::Object(property_schema_object.clone()),
@@ -126,6 +123,8 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
 
 #[cfg(test)]
 mod tests {
+    use assert_json_diff::assert_json_eq;
+
     use super::*;
 
     #[test]
@@ -314,7 +313,7 @@ mod tests {
         let mut actual_converted_schema_object = original_schema_object.clone();
         hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
 
-        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+        assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
     }
 
     #[test]
@@ -439,7 +438,7 @@ mod tests {
         let mut actual_converted_schema_object = original_schema_object.clone();
         hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
 
-        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+        assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
     }
 
     #[test]
@@ -558,7 +557,7 @@ mod tests {
         let mut actual_converted_schema_object = original_schema_object.clone();
         hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
 
-        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+        assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
     }
 
     #[test]
@@ -647,7 +646,7 @@ mod tests {
         let mut actual_converted_schema_object = original_schema_object.clone();
         hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
 
-        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+        assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
     }
 
     #[test]

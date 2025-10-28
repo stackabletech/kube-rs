@@ -1,6 +1,6 @@
 use std::ops::DerefMut;
 
-use crate::schema::{Schema, SchemaObject, SubschemaValidation};
+use crate::schema::{Schema, SchemaObject, SubschemaValidation, NULL_SCHEMA};
 
 /// Replace the schema with the anyOf subschema and set to nullable when the
 /// only other subschema is the nullable entry.
@@ -36,19 +36,10 @@ pub(crate) fn hoist_any_of_subschema_with_a_nullable_variant(kube_schema: &mut S
         return;
     }
 
-    // This is the signature for the null variant, indicating the "other"
-    // variant is the subschema that needs hoisting
-    let null = serde_json::json!({
-        "enum": [null],
-        "nullable": true
-    });
-
-    // iter through any_of entries, converting them to Value,
-    // and build a truth table for null matches
     let entry_is_null: [bool; 2] = any_of
         .iter()
         .map(|x| serde_json::to_value(x).expect("schema should be able to convert to JSON"))
-        .map(|x| x == null)
+        .map(|x| x == *NULL_SCHEMA)
         .collect::<Vec<_>>()
         .try_into()
         .expect("there should be exactly 2 elements. We checked earlier");
@@ -63,8 +54,8 @@ pub(crate) fn hoist_any_of_subschema_with_a_nullable_variant(kube_schema: &mut S
     // At this point, we can be reasonably sure we need to hoist the non-null
     // anyOf subschema up to the schema level, and unset the anyOf field.
     // From here, anything that looks wrong will panic instead of return.
-    // TODO (@NickLarsenNZ): Return errors instead of panicking, leave panicking up to the infallible schemars::Transform
-
+    // TODO (@NickLarsenNZ): Return errors instead of panicking, leave panicking up to the
+    // infallible schemars::Transform
     let Schema::Object(to_hoist) = subschema_to_hoist else {
         panic!("the non-null anyOf subschema is a bool. That is not expected here");
     };
@@ -90,6 +81,8 @@ pub(crate) fn hoist_any_of_subschema_with_a_nullable_variant(kube_schema: &mut S
 
 #[cfg(test)]
 mod tests {
+    use assert_json_diff::assert_json_eq;
+
     use super::*;
 
     #[test]
@@ -168,7 +161,7 @@ mod tests {
         let mut actual_converted_schema_object = original_schema_object.clone();
         hoist_any_of_subschema_with_a_nullable_variant(&mut actual_converted_schema_object);
 
-        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+        assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
     }
 
     #[test]
@@ -216,6 +209,6 @@ mod tests {
         let mut actual_converted_schema_object = original_schema_object.clone();
         hoist_any_of_subschema_with_a_nullable_variant(&mut actual_converted_schema_object);
 
-        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+        assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
     }
 }

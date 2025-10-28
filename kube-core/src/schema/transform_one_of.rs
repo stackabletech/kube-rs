@@ -41,7 +41,8 @@ pub(crate) fn hoist_one_of_enum_with_unit_variants(kube_schema: &mut SchemaObjec
     // At this point, we can be reasonably sure we need to hoist the oneOf
     // subschema enums and types up to the schema level, and unset the oneOf field.
     // From here, anything that looks wrong will panic instead of return.
-    // TODO (@NickLarsenNZ): Return errors instead of panicking, leave panicking up to the infallible schemars::Transform
+    // TODO (@NickLarsenNZ): Return errors instead of panicking, leave panicking up to the
+    // infallible schemars::Transform
 
     // Prepare to ensure each variant schema has a type
     let mut types = one_of.iter().map(|schema| match schema {
@@ -92,6 +93,8 @@ pub(crate) fn hoist_one_of_enum_with_unit_variants(kube_schema: &mut SchemaObjec
 
 #[cfg(test)]
 mod tests {
+    use assert_json_diff::assert_json_eq;
+
     use super::*;
 
     #[test]
@@ -143,6 +146,6 @@ mod tests {
         let mut actual_converted_schema_object = original_schema_object.clone();
         hoist_one_of_enum_with_unit_variants(&mut actual_converted_schema_object);
 
-        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+        assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
     }
 }

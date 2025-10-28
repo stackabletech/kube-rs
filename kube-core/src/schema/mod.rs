@@ -13,7 +13,10 @@ mod transform_properties;
 use schemars::{transform::Transform, JsonSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::LazyLock,
+};
 
 use crate::schema::{
     transform_any_of::hoist_any_of_subschema_with_a_nullable_variant,
@@ -21,6 +24,14 @@ use crate::schema::{
     transform_optional_enum_with_null::remove_optional_enum_null_variant,
     transform_properties::hoist_properties_for_any_of_subschemas,
 };
+
+/// This is the signature for the `null` variant produced by schemars.
+static NULL_SCHEMA: LazyLock<Value> = LazyLock::new(|| {
+    serde_json::json!({
+        "enum": [null],
+        "nullable": true
+    })
+});
 
 /// schemars [`Visitor`] that rewrites a [`Schema`] to conform to Kubernetes' "structural schema" rules
 ///
