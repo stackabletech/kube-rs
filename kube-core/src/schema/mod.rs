@@ -14,11 +14,11 @@ use schemars::{transform::Transform, JsonSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
-use transform_optional_enum_with_null::remove_optional_enum_null_variant;
 
 use crate::schema::{
     transform_any_of::hoist_any_of_subschema_with_a_nullable_variant,
     transform_one_of::hoist_one_of_enum_with_unit_variants,
+    transform_optional_enum_with_null::remove_optional_enum_null_variant,
     transform_properties::hoist_properties_for_any_of_subschemas,
 };
 
