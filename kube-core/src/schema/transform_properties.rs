@@ -35,7 +35,8 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
         return;
     }
 
-    // Ensure we aren't looking at the one with a null, as that is hoisted by another transformer
+    // Ensure we aren't looking at the subschema with a null, as that is hoisted by another
+    // transformer.
     if subschemas.len() == 2 {
         // Return if there is a null entry
         if subschemas
@@ -47,7 +48,7 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
         }
     }
 
-    // At this point, we can be reasonably sure we need operate on the schema.
+    // At this point, we can be reasonably sure we need to operate on the schema.
     // TODO (@NickLarsenNZ): Return errors instead of panicking, leave panicking up to the
     // infallible schemars::Transform
 
@@ -84,19 +85,18 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
                 };
             }
 
-            // If properties are set, hoist them to the schema properties.
+            // If subschema properties are set, hoist them to the schema properties.
             // This will panic if duplicate properties are encountered that do not have the same
             // shape. That can happen when the untagged enum variants each refer to structs which
             // contain the same field name but with different types or doc-comments.
             // The developer needs to make them the same.
-            // TODO (@NickLarsenNZ): Add a case for a structural variant, and a tuple variant
-            // containing a structure where the same field name is used.
             while let Some((property_name, Schema::Object(property_schema_object))) =
                 object.properties.pop_first()
             {
                 // This would check that the variant property (that we want to now hoist)
                 // is exactly the same as what is already hoisted (in this function).
                 if let Some(existing_property) = parent_object
+                    // get the `ObjectValidation`, or an empty one without any properties set
                     .get_or_insert_default()
                     .properties
                     .get(&property_name)
