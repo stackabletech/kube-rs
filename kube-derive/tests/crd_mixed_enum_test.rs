@@ -1,6 +1,12 @@
 #![allow(missing_docs)]
+use std::time::Duration;
+
 use assert_json_diff::assert_json_eq;
-use kube::{CustomResource, CustomResourceExt};
+use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
+use kube::{
+    api::{DeleteParams, PostParams},
+    Api, Client, CustomResource, CustomResourceExt, ResourceExt,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -84,6 +90,30 @@ enum InvalidEnum7Spec {
         /// This description differs!
         inner: u32,
     },
+}
+
+#[tokio::test]
+#[ignore = "needs apiserver to validate CRDs"]
+async fn check_are_valid_crds() {
+    let crds = [ValidEnum3::crd(), ValidEnum4::crd(), ValidEnum6::crd()];
+
+    let client = Client::try_default()
+        .await
+        .expect("failed to create Kubernetes client");
+    let crd_api: Api<CustomResourceDefinition> = Api::all(client);
+    for crd in crds {
+        // Clean up existing CRDs. As these are only test CRDs and this test is not run by default
+        // this is fine.
+        let _ = crd_api.delete(&crd.name_any(), &DeleteParams::default()).await;
+
+        // Prevent "object is being deleted: customresourcedefinition already exists
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        crd_api
+            .create(&PostParams::default(), &crd)
+            .await
+            .expect("failed to create CRD");
+    }
 }
 
 /// Use `cargo test --package kube-derive print_crds -- --nocapture` to get the CRDs as YAML.
