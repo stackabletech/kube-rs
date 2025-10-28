@@ -83,14 +83,13 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
             while let Some((property_name, Schema::Object(property_schema_object))) =
                 object.properties.pop_first()
             {
+                let parent_object = parent_object
+                    // get the `ObjectValidation`, or an empty one without any properties set
+                    .get_or_insert_default();
+
                 // This would check that the variant property (that we want to now hoist)
                 // is exactly the same as what is already hoisted (in this function).
-                if let Some(existing_property) = parent_object
-                    // get the `ObjectValidation`, or an empty one without any properties set
-                    .get_or_insert_default()
-                    .properties
-                    .get(&property_name)
-                {
+                if let Some(existing_property) = parent_object.properties.get(&property_name) {
                     // TODO (@NickLarsenNZ): Here we could do another check to see if it only
                     // differs by description. If the schema property description is not set, then
                     // we could overwrite it and not panic.
@@ -102,7 +101,6 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
                 } else {
                     // Otherwise, insert the subschema properties into the schema properties
                     parent_object
-                        .get_or_insert_default()
                         .properties
                         .insert(property_name.clone(), Schema::Object(property_schema_object));
                 }
