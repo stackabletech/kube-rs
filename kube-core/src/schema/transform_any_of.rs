@@ -38,8 +38,8 @@ pub(crate) fn hoist_any_of_subschema_with_a_nullable_variant(kube_schema: &mut S
 
     let entry_is_null: [bool; 2] = any_of
         .iter()
-        .map(|x| serde_json::to_value(x).expect("schema should be able to convert to JSON"))
-        .map(|x| x == *NULL_SCHEMA)
+        .map(|schema| serde_json::to_value(schema).expect("schema should be able to convert to JSON"))
+        .map(|value| value == *NULL_SCHEMA)
         .collect::<Vec<_>>()
         .try_into()
         .expect("there should be exactly 2 elements. We checked earlier");

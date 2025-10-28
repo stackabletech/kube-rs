@@ -40,8 +40,8 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
         // Return if there is a null entry
         if subschemas
             .iter()
-            .map(|x| serde_json::to_value(x).expect("schema should be able to convert to JSON"))
-            .any(|x| x == *NULL_SCHEMA)
+            .map(|schema| serde_json::to_value(schema).expect("schema should be able to convert to JSON"))
+            .any(|value| value == *NULL_SCHEMA)
         {
             return;
         }
