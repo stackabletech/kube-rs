@@ -1,4 +1,4 @@
-use crate::schema::{InstanceType, Metadata, Schema, SchemaObject, SingleOrVec, NULL_SCHEMA};
+use crate::schema::{InstanceType, Schema, SchemaObject, SingleOrVec, NULL_SCHEMA};
 
 /// Take oneOf or anyOf subschema properties and move them them into the schema
 /// properties.

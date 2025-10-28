@@ -57,13 +57,13 @@ enum InvalidEnum5Spec {
 #[kube(group = "clux.dev", version = "v1", kind = "ValidEnum6")]
 #[serde(untagged)]
 enum ValidEnum6Spec {
-    B {
+    A {
         /// The inner fields need to have the same schema (so also same description)
         inner: u32,
         /// An additional field
         additional: String,
     },
-    A {
+    B {
         /// The inner fields need to have the same schema (so also same description)
         inner: u32,
     },
@@ -75,12 +75,12 @@ enum ValidEnum6Spec {
 #[kube(group = "clux.dev", version = "v1", kind = "InvalidEnum7")]
 #[serde(untagged)]
 enum InvalidEnum7Spec {
-    B {
+    A {
         /// The inner fields need to have the same schema (so also same description)
         inner: u32,
         additional: String,
     },
-    A {
+    B {
         /// This description differs!
         inner: u32,
     },
@@ -269,6 +269,7 @@ fn valid_enum_4() {
 fn invalid_enum_5() {
     InvalidEnum5::crd();
 }
+
 #[test]
 fn valid_enum_6() {
     assert_json_eq!(
