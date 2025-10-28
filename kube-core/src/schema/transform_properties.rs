@@ -61,19 +61,29 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
         .collect::<Vec<_>>();
 
     for subschema in subschemas {
-        // Drop the "type" field on subschema. It needs to be set to "object" on the schema.
+        // This will clear out any objects that don't have required/properties fields (so that it
+        // appears as: {}).
+        let metadata = subschema.metadata.take();
         subschema.instance_type.take();
-        kube_schema.instance_type = Some(SingleOrVec::Single(Box::new(InstanceType::Object)));
 
-        // Drop the description for untagged enum variants.
-        // This (along with the dropping of the "type" above) will allow for empty variants ({}).
-        if !preserve_description {
-            subschema.metadata.take();
-        }
+        // Set the schema type to object
+        kube_schema.instance_type = Some(SingleOrVec::Single(Box::new(InstanceType::Object)));
 
         if let Some(object) = subschema.object.as_deref_mut() {
             // Kubernetes doesn't allow variants to set additionalProperties
             object.additional_properties.take();
+
+            // For a tagged enum (oneOf), we need to preserve the variant description
+            if preserve_description {
+                if let Some(Schema::Object(subschema)) = object.properties.values_mut().next() {
+                    if let Some(Metadata {
+                        description: Some(_), ..
+                    }) = metadata.as_deref()
+                    {
+                        subschema.metadata = metadata
+                    }
+                };
+            }
 
             // If subschema properties are set, hoist them to the schema properties.
             // This will panic if duplicate properties are encountered that do not have the same
