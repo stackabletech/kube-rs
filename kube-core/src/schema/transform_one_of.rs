@@ -2,60 +2,6 @@ use std::ops::DerefMut;
 
 use crate::schema::{Schema, SchemaObject, SubschemaValidation};
 
-#[cfg(test)]
-#[test]
-fn tagged_enum_with_unit_variants() {
-    let original_schema_object_value = serde_json::json!({
-        "description": "A very simple enum with unit variants",
-        "oneOf": [
-            {
-                "type": "string",
-                "enum": [
-                    "C",
-                    "D"
-                ]
-            },
-            {
-                "description": "First variant doc-comment",
-                "type": "string",
-                "enum": [
-                    "A"
-                ]
-            },
-            {
-                "description": "Second variant doc-comment",
-                "type": "string",
-                "enum": [
-                    "B"
-                ]
-            },
-        ]
-    });
-
-    let expected_converted_schema_object_value = serde_json::json!({
-        "description": "A very simple enum with unit variants",
-        "type": "string",
-        "enum": [
-            "C",
-            "D",
-            "A",
-            "B"
-        ]
-    });
-
-
-    let original_schema_object: SchemaObject =
-        serde_json::from_value(original_schema_object_value).expect("valid JSON");
-    let expected_converted_schema_object: SchemaObject =
-        serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
-
-    let mut actual_converted_schema_object = original_schema_object.clone();
-    hoist_one_of_enum_with_unit_variants(&mut actual_converted_schema_object);
-
-    assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
-}
-
-
 /// Merge oneOf subschema enums and consts into a schema level enum.
 ///
 /// Used for correcting the schema for tagged enums with unit variants.
@@ -142,4 +88,61 @@ pub(crate) fn hoist_one_of_enum_with_unit_variants(kube_schema: &mut SchemaObjec
 
     // Clear the oneOf subschemas
     subschemas.one_of = None;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tagged_enum_with_unit_variants() {
+        let original_schema_object_value = serde_json::json!({
+            "description": "A very simple enum with unit variants",
+            "oneOf": [
+                {
+                    "type": "string",
+                    "enum": [
+                        "C",
+                        "D"
+                    ]
+                },
+                {
+                    "description": "First variant doc-comment",
+                    "type": "string",
+                    "enum": [
+                        "A"
+                    ]
+                },
+                {
+                    "description": "Second variant doc-comment",
+                    "type": "string",
+                    "enum": [
+                        "B"
+                    ]
+                },
+            ]
+        });
+
+        let expected_converted_schema_object_value = serde_json::json!({
+            "description": "A very simple enum with unit variants",
+            "type": "string",
+            "enum": [
+                "C",
+                "D",
+                "A",
+                "B"
+            ]
+        });
+
+
+        let original_schema_object: SchemaObject =
+            serde_json::from_value(original_schema_object_value).expect("valid JSON");
+        let expected_converted_schema_object: SchemaObject =
+            serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
+
+        let mut actual_converted_schema_object = original_schema_object.clone();
+        hoist_one_of_enum_with_unit_variants(&mut actual_converted_schema_object);
+
+        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+    }
 }

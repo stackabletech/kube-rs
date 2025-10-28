@@ -1,661 +1,5 @@
 use crate::schema::{InstanceType, Metadata, Schema, SchemaObject, SingleOrVec};
 
-#[cfg(test)]
-#[test]
-fn tagged_enum_with_stuct_and_tuple_variants_before_one_of_hoisting() {
-    let original_schema_object_value = serde_json::json!({
-        "description": "A complex tagged enum with unit and struct variants",
-        "oneOf": [
-            {
-                "additionalProperties": false,
-                "description": "Override documentation on the Normal variant",
-                "properties": {
-                    "Normal": {
-                        "description": "A very simple enum with unit variants",
-                        "oneOf": [
-                            {
-                                "enum": [
-                                    "C",
-                                    "D"
-                                ],
-                                "type": "string"
-                            },
-                            {
-                                "description": "First variant",
-                                "enum": [
-                                    "A"
-                                ],
-                                "type": "string"
-                            },
-                            {
-                                "description": "Second variant",
-                                "enum": [
-                                    "B"
-                                ],
-                                "type": "string"
-                            }
-                        ]
-                    }
-                },
-                "required": [
-                    "Normal"
-                ],
-                "type": "object"
-            },
-            {
-                "additionalProperties": false,
-                "description": "Documentation on the Hardcore variant",
-                "properties": {
-                    "Hardcore": {
-                        "properties": {
-                            "core": {
-                                "description": "A very simple enum with unit variants",
-                                "oneOf": [
-                                    {
-                                        "enum": [
-                                            "C",
-                                            "D"
-                                        ],
-                                        "type": "string"
-                                    },
-                                    {
-                                        "description": "First variant",
-                                        "enum": [
-                                            "A"
-                                        ],
-                                        "type": "string"
-                                    },
-                                    {
-                                        "description": "Second variant",
-                                        "enum": [
-                                            "B"
-                                        ],
-                                        "type": "string"
-                                    }
-                                ]
-                            },
-                            "hard": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "hard",
-                            "core"
-                        ],
-                        "type": "object"
-                    }
-                },
-                "required": [
-                    "Hardcore"
-                ],
-                "type": "object"
-            }
-        ]
-    });
-
-    let expected_converted_schema_object_value = serde_json::json!(
-        {
-            "description": "A complex tagged enum with unit and struct variants",
-            "oneOf": [
-              {
-                "required": [
-                  "Normal"
-                ]
-              },
-              {
-                "required": [
-                  "Hardcore"
-                ]
-              }
-            ],
-            "properties": {
-              "Hardcore": {
-                "description": "Documentation on the Hardcore variant",
-                "properties": {
-                  "core": {
-                    "description": "A very simple enum with unit variants",
-                    "oneOf": [
-                      {
-                        "enum": [
-                          "C",
-                          "D"
-                        ],
-                        "type": "string"
-                      },
-                      {
-                        "description": "First variant",
-                        "enum": [
-                          "A"
-                        ],
-                        "type": "string"
-                      },
-                      {
-                        "description": "Second variant",
-                        "enum": [
-                          "B"
-                        ],
-                        "type": "string"
-                      }
-                    ]
-                  },
-                  "hard": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "core",
-                  "hard"
-                ],
-                "type": "object"
-              },
-              "Normal": {
-                "description": "Override documentation on the Normal variant",
-                "oneOf": [
-                  {
-                    "enum": [
-                      "C",
-                      "D"
-                    ],
-                    "type": "string"
-                  },
-                  {
-                    "description": "First variant",
-                    "enum": [
-                      "A"
-                    ],
-                    "type": "string"
-                  },
-                  {
-                    "description": "Second variant",
-                    "enum": [
-                      "B"
-                    ],
-                    "type": "string"
-                  }
-                ]
-              }
-            },
-            "type": "object"
-          }
-    );
-
-    let original_schema_object: SchemaObject =
-        serde_json::from_value(original_schema_object_value).expect("valid JSON");
-    let expected_converted_schema_object: SchemaObject =
-        serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
-
-    let mut actual_converted_schema_object = original_schema_object.clone();
-    hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
-
-    assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
-}
-
-#[cfg(test)]
-#[test]
-fn tagged_enum_with_stuct_and_tuple_variants_after_one_of_hoisting() {
-    let original_schema_object_value = serde_json::json!({
-        "description": "A complex tagged enum with unit and struct variants",
-        "oneOf": [
-            {
-                "additionalProperties": false,
-                "description": "Override documentation on the Normal variant",
-                "properties": {
-                    "Normal": {
-                        "description": "A very simple enum with unit variants",
-                        "type": "string",
-                        "enum": [
-                            "C",
-                            "D",
-                            "A",
-                            "B"
-                        ]
-                    }
-                },
-                "required": [
-                    "Normal"
-                ],
-                "type": "object"
-            },
-            {
-                "additionalProperties": false,
-                "description": "Documentation on the Hardcore variant",
-                "properties": {
-                    "Hardcore": {
-                        "properties": {
-                            "core": {
-                                "description": "A very simple enum with unit variants",
-                                "type": "string",
-                                "enum": [
-                                    "C",
-                                    "D",
-                                    "A",
-                                    "B"
-                                ]
-                            },
-                            "hard": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "hard",
-                            "core"
-                        ],
-                        "type": "object"
-                    }
-                },
-                "required": [
-                    "Hardcore"
-                ],
-                "type": "object"
-            }
-        ]
-    });
-
-    let expected_converted_schema_object_value = serde_json::json!(
-        {
-            "description": "A complex tagged enum with unit and struct variants",
-            "oneOf": [
-              {
-                "required": [
-                  "Normal"
-                ]
-              },
-              {
-                "required": [
-                  "Hardcore"
-                ]
-              }
-            ],
-            "properties": {
-              "Hardcore": {
-                "description": "Documentation on the Hardcore variant",
-                "properties": {
-                  "core": {
-                    "description": "A very simple enum with unit variants",
-                    "type": "string",
-                    "enum": [
-                        "C",
-                        "D",
-                        "A",
-                        "B"
-                    ]
-                  },
-                  "hard": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "core",
-                  "hard"
-                ],
-                "type": "object"
-              },
-              "Normal": {
-                "description": "Override documentation on the Normal variant",
-                "type": "string",
-                "enum": [
-                    "C",
-                    "D",
-                    "A",
-                    "B"
-                ]
-              }
-            },
-            "type": "object"
-          }
-    );
-
-    let original_schema_object: SchemaObject =
-        serde_json::from_value(original_schema_object_value).expect("valid JSON");
-    let expected_converted_schema_object: SchemaObject =
-        serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
-
-    let mut actual_converted_schema_object = original_schema_object.clone();
-    hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
-
-    assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
-}
-
-#[cfg(test)]
-#[test]
-fn untagged_enum_with_empty_variant_before_one_of_hoisting() {
-    let original_schema_object_value = serde_json::json!({
-        "description": "An untagged enum with a nested enum inside",
-        "anyOf": [
-            {
-                "description": "Used in case the `one` field is present",
-                "type": "object",
-                "required": [
-                    "one"
-                ],
-                "properties": {
-                    "one": {
-                        "type": "string"
-                    }
-                }
-            },
-            {
-                "description": "Used in case the `two` field is present",
-                "type": "object",
-                "required": [
-                    "two"
-                ],
-                "properties": {
-                    "two": {
-                        "description": "A very simple enum with unit variants",
-                        "oneOf": [
-                            {
-                                "type": "string",
-                                "enum": [
-                                    "C",
-                                    "D"
-                                ]
-                            },
-                            {
-                                "description": "First variant doc-comment",
-                                "type": "string",
-                                "enum": [
-                                    "A"
-                                ]
-                            },
-                            {
-                                "description": "Second variant doc-comment",
-                                "type": "string",
-                                "enum": [
-                                    "B"
-                                ]
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "description": "Used in case no fields are present",
-                "type": "object"
-            }
-        ]
-    });
-
-    let expected_converted_schema_object_value = serde_json::json!({
-        "description": "An untagged enum with a nested enum inside",
-        "type": "object",
-        "anyOf": [
-            {
-                "required": [
-                    "one"
-                ]
-            },
-            {
-                "required": [
-                    "two"
-                ]
-            },
-            {}
-        ],
-        "properties": {
-            "one": {
-                "type": "string"
-            },
-            "two": {
-                "description": "A very simple enum with unit variants",
-                "oneOf": [
-                    {
-                        "type": "string",
-                        "enum": [
-                            "C",
-                            "D"
-                        ]
-                    },
-                    {
-                        "description": "First variant doc-comment",
-                        "type": "string",
-                        "enum": [
-                            "A"
-                        ]
-                    },
-                    {
-                        "description": "Second variant doc-comment",
-                        "type": "string",
-                        "enum": [
-                            "B"
-                        ]
-                    }
-                ]
-            }
-        }
-    });
-
-    let original_schema_object: SchemaObject =
-        serde_json::from_value(original_schema_object_value).expect("valid JSON");
-    let expected_converted_schema_object: SchemaObject =
-        serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
-
-    let mut actual_converted_schema_object = original_schema_object.clone();
-    hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
-
-    assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
-}
-
-#[cfg(test)]
-#[test]
-fn untagged_enum_with_duplicate_field_of_same_shape() {
-    let original_schema_object_value = serde_json::json!({
-        "description": "Comment for untagged enum ProductImageSelection",
-        "anyOf": [
-            {
-                "description": "Comment for struct ProductImageCustom",
-                "properties": {
-                    "custom": {
-                        "description": "Comment for custom field",
-                        "type": "string"
-                    },
-                    "productVersion": {
-                        "description": "Comment for product_version field (same on both structs)",
-                        "type": "string"
-                }
-            },
-                "required": [
-                    "productVersion",
-                    "custom"
-                ],
-                "type": "object"
-            },
-            {
-                "description": "Comment for struct ProductImageVersion",
-                "properties": {
-                    "productVersion": {
-                        "description": "Comment for product_version field (same on both structs)",
-                        "type": "string"
-                    },
-                    "repo": {
-                        "description": "Comment for repo field",
-                        "nullable": true,
-                        "type": "string"
-                }
-            },
-                "required": [
-                    "productVersion"
-                ],
-                "type": "object"
-            }
-        ]
-    });
-
-    let expected_converted_schema_object_value = serde_json::json!({
-        "description": "Comment for untagged enum ProductImageSelection",
-        "type": "object",
-        "anyOf": [
-            {
-                "required": [
-                    "custom",
-                    "productVersion"
-                ]
-            },
-            {
-                "required": [
-                    "productVersion"
-                ]
-            }
-        ],
-        "properties": {
-            "custom": {
-                "description": "Comment for custom field",
-                "type": "string"
-            },
-            "productVersion": {
-                "description": "Comment for product_version field (same on both structs)",
-                "type": "string"
-                    },
-            "repo": {
-                "description": "Comment for repo field",
-                "nullable": true,
-                "type": "string"
-            }
-        }
-
-    });
-
-    let original_schema_object: SchemaObject =
-        serde_json::from_value(original_schema_object_value).expect("valid JSON");
-    let expected_converted_schema_object: SchemaObject =
-        serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
-
-    let mut actual_converted_schema_object = original_schema_object.clone();
-    hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
-
-    assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
-}
-
-#[cfg(test)]
-#[test]
-#[should_panic(expected = "Properties for \"two\" are defined multiple times with different shapes")]
-fn invalid_untagged_enum_with_conflicting_variant_fields_before_one_of_hosting() {
-    let original_schema_object_value = serde_json::json!({
-        "description": "An untagged enum with a nested enum inside",
-        "anyOf": [
-            {
-                "description": "Used in case the `one` field is present",
-                "type": "object",
-                "required": [
-                    "one",
-                    "two"
-                ],
-                "properties": {
-                    "one": {
-                        "type": "string"
-                    },
-                    "two": {
-                        "type": "integer"
-                    }
-                }
-            },
-            {
-                "description": "Used in case the `two` field is present",
-                "type": "object",
-                "required": [
-                    "two"
-                ],
-                "properties": {
-                    "two": {
-                        "description": "A very simple enum with unit variants",
-                        "oneOf": [
-                            {
-                                "type": "string",
-                                "enum": [
-                                    "C",
-                                    "D"
-                                ]
-                            },
-                            {
-                                "description": "First variant doc-comment",
-                                "type": "string",
-                                "enum": [
-                                    "A"
-                                ]
-                            },
-                            {
-                                "description": "Second variant doc-comment",
-                                "type": "string",
-                                "enum": [
-                                    "B"
-                                ]
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "description": "Used in case no fields are present",
-                "type": "object"
-            }
-        ]
-    });
-
-
-    let original_schema_object: SchemaObject =
-        serde_json::from_value(original_schema_object_value).expect("valid JSON");
-
-    let mut actual_converted_schema_object = original_schema_object.clone();
-    hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
-}
-
-#[cfg(test)]
-#[test]
-#[should_panic(expected = "Properties for \"two\" are defined multiple times with different shapes")]
-fn invalid_untagged_enum_with_conflicting_variant_fields_after_one_of_hosting() {
-    // NOTE: the oneOf for the second variant has already been hoisted
-    let original_schema_object_value = serde_json::json!({
-        "description": "An untagged enum with a nested enum inside",
-        "anyOf": [
-            {
-                "description": "Used in case the `one` field is present",
-                "type": "object",
-                "required": [
-                    "one",
-                    "two",
-                ],
-                "properties": {
-                    "one": {
-                        "type": "string"
-                    },
-                    "two": {
-                        "type": "string"
-                    }
-                }
-            },
-            {
-                "description": "Used in case the `two` field is present",
-                "type": "object",
-                "required": [
-                    "two"
-                ],
-                "properties": {
-                    "two": {
-                        "description": "A very simple enum with unit variants",
-                        "type": "string",
-                        "enum": [
-                            "C",
-                            "D",
-                            "A",
-                            "B"
-                        ]
-                    }
-                }
-            },
-            {
-                "description": "Used in case no fields are present",
-                "type": "object"
-            }
-        ]
-    });
-
-    let original_schema_object: SchemaObject =
-        serde_json::from_value(original_schema_object_value).expect("valid JSON");
-
-    let mut actual_converted_schema_object = original_schema_object.clone();
-    hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
-}
-
 /// Take oneOf or anyOf subschema properties and move them them into the schema
 /// properties.
 ///
@@ -777,5 +121,660 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tagged_enum_with_stuct_and_tuple_variants_before_one_of_hoisting() {
+        let original_schema_object_value = serde_json::json!({
+            "description": "A complex tagged enum with unit and struct variants",
+            "oneOf": [
+                {
+                    "additionalProperties": false,
+                    "description": "Override documentation on the Normal variant",
+                    "properties": {
+                        "Normal": {
+                            "description": "A very simple enum with unit variants",
+                            "oneOf": [
+                                {
+                                    "enum": [
+                                        "C",
+                                        "D"
+                                    ],
+                                    "type": "string"
+                                },
+                                {
+                                    "description": "First variant",
+                                    "enum": [
+                                        "A"
+                                    ],
+                                    "type": "string"
+                                },
+                                {
+                                    "description": "Second variant",
+                                    "enum": [
+                                        "B"
+                                    ],
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "required": [
+                        "Normal"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "additionalProperties": false,
+                    "description": "Documentation on the Hardcore variant",
+                    "properties": {
+                        "Hardcore": {
+                            "properties": {
+                                "core": {
+                                    "description": "A very simple enum with unit variants",
+                                    "oneOf": [
+                                        {
+                                            "enum": [
+                                                "C",
+                                                "D"
+                                            ],
+                                            "type": "string"
+                                        },
+                                        {
+                                            "description": "First variant",
+                                            "enum": [
+                                                "A"
+                                            ],
+                                            "type": "string"
+                                        },
+                                        {
+                                            "description": "Second variant",
+                                            "enum": [
+                                                "B"
+                                            ],
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "hard": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "hard",
+                                "core"
+                            ],
+                            "type": "object"
+                        }
+                    },
+                    "required": [
+                        "Hardcore"
+                    ],
+                    "type": "object"
+                }
+            ]
+        });
+
+        let expected_converted_schema_object_value = serde_json::json!(
+            {
+                "description": "A complex tagged enum with unit and struct variants",
+                "oneOf": [
+                  {
+                    "required": [
+                      "Normal"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "Hardcore"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "Hardcore": {
+                    "description": "Documentation on the Hardcore variant",
+                    "properties": {
+                      "core": {
+                        "description": "A very simple enum with unit variants",
+                        "oneOf": [
+                          {
+                            "enum": [
+                              "C",
+                              "D"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "description": "First variant",
+                            "enum": [
+                              "A"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "description": "Second variant",
+                            "enum": [
+                              "B"
+                            ],
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "hard": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "core",
+                      "hard"
+                    ],
+                    "type": "object"
+                  },
+                  "Normal": {
+                    "description": "Override documentation on the Normal variant",
+                    "oneOf": [
+                      {
+                        "enum": [
+                          "C",
+                          "D"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "description": "First variant",
+                        "enum": [
+                          "A"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "description": "Second variant",
+                        "enum": [
+                          "B"
+                        ],
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                "type": "object"
+              }
+        );
+
+        let original_schema_object: SchemaObject =
+            serde_json::from_value(original_schema_object_value).expect("valid JSON");
+        let expected_converted_schema_object: SchemaObject =
+            serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
+
+        let mut actual_converted_schema_object = original_schema_object.clone();
+        hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
+
+        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+    }
+
+    #[test]
+    fn tagged_enum_with_stuct_and_tuple_variants_after_one_of_hoisting() {
+        let original_schema_object_value = serde_json::json!({
+            "description": "A complex tagged enum with unit and struct variants",
+            "oneOf": [
+                {
+                    "additionalProperties": false,
+                    "description": "Override documentation on the Normal variant",
+                    "properties": {
+                        "Normal": {
+                            "description": "A very simple enum with unit variants",
+                            "type": "string",
+                            "enum": [
+                                "C",
+                                "D",
+                                "A",
+                                "B"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "Normal"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "additionalProperties": false,
+                    "description": "Documentation on the Hardcore variant",
+                    "properties": {
+                        "Hardcore": {
+                            "properties": {
+                                "core": {
+                                    "description": "A very simple enum with unit variants",
+                                    "type": "string",
+                                    "enum": [
+                                        "C",
+                                        "D",
+                                        "A",
+                                        "B"
+                                    ]
+                                },
+                                "hard": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "hard",
+                                "core"
+                            ],
+                            "type": "object"
+                        }
+                    },
+                    "required": [
+                        "Hardcore"
+                    ],
+                    "type": "object"
+                }
+            ]
+        });
+
+        let expected_converted_schema_object_value = serde_json::json!(
+            {
+                "description": "A complex tagged enum with unit and struct variants",
+                "oneOf": [
+                  {
+                    "required": [
+                      "Normal"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "Hardcore"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "Hardcore": {
+                    "description": "Documentation on the Hardcore variant",
+                    "properties": {
+                      "core": {
+                        "description": "A very simple enum with unit variants",
+                        "type": "string",
+                        "enum": [
+                            "C",
+                            "D",
+                            "A",
+                            "B"
+                        ]
+                      },
+                      "hard": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "core",
+                      "hard"
+                    ],
+                    "type": "object"
+                  },
+                  "Normal": {
+                    "description": "Override documentation on the Normal variant",
+                    "type": "string",
+                    "enum": [
+                        "C",
+                        "D",
+                        "A",
+                        "B"
+                    ]
+                  }
+                },
+                "type": "object"
+              }
+        );
+
+        let original_schema_object: SchemaObject =
+            serde_json::from_value(original_schema_object_value).expect("valid JSON");
+        let expected_converted_schema_object: SchemaObject =
+            serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
+
+        let mut actual_converted_schema_object = original_schema_object.clone();
+        hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
+
+        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+    }
+
+    #[test]
+    fn untagged_enum_with_empty_variant_before_one_of_hoisting() {
+        let original_schema_object_value = serde_json::json!({
+            "description": "An untagged enum with a nested enum inside",
+            "anyOf": [
+                {
+                    "description": "Used in case the `one` field is present",
+                    "type": "object",
+                    "required": [
+                        "one"
+                    ],
+                    "properties": {
+                        "one": {
+                            "type": "string"
+                        }
+                    }
+                },
+                {
+                    "description": "Used in case the `two` field is present",
+                    "type": "object",
+                    "required": [
+                        "two"
+                    ],
+                    "properties": {
+                        "two": {
+                            "description": "A very simple enum with unit variants",
+                            "oneOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "C",
+                                        "D"
+                                    ]
+                                },
+                                {
+                                    "description": "First variant doc-comment",
+                                    "type": "string",
+                                    "enum": [
+                                        "A"
+                                    ]
+                                },
+                                {
+                                    "description": "Second variant doc-comment",
+                                    "type": "string",
+                                    "enum": [
+                                        "B"
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "description": "Used in case no fields are present",
+                    "type": "object"
+                }
+            ]
+        });
+
+        let expected_converted_schema_object_value = serde_json::json!({
+            "description": "An untagged enum with a nested enum inside",
+            "type": "object",
+            "anyOf": [
+                {
+                    "required": [
+                        "one"
+                    ]
+                },
+                {
+                    "required": [
+                        "two"
+                    ]
+                },
+                {}
+            ],
+            "properties": {
+                "one": {
+                    "type": "string"
+                },
+                "two": {
+                    "description": "A very simple enum with unit variants",
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "enum": [
+                                "C",
+                                "D"
+                            ]
+                        },
+                        {
+                            "description": "First variant doc-comment",
+                            "type": "string",
+                            "enum": [
+                                "A"
+                            ]
+                        },
+                        {
+                            "description": "Second variant doc-comment",
+                            "type": "string",
+                            "enum": [
+                                "B"
+                            ]
+                        }
+                    ]
+                }
+            }
+        });
+
+        let original_schema_object: SchemaObject =
+            serde_json::from_value(original_schema_object_value).expect("valid JSON");
+        let expected_converted_schema_object: SchemaObject =
+            serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
+
+        let mut actual_converted_schema_object = original_schema_object.clone();
+        hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
+
+        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+    }
+
+    #[test]
+    fn untagged_enum_with_duplicate_field_of_same_shape() {
+        let original_schema_object_value = serde_json::json!({
+            "description": "Comment for untagged enum ProductImageSelection",
+            "anyOf": [
+                {
+                    "description": "Comment for struct ProductImageCustom",
+                    "properties": {
+                        "custom": {
+                            "description": "Comment for custom field",
+                            "type": "string"
+                        },
+                        "productVersion": {
+                            "description": "Comment for product_version field (same on both structs)",
+                            "type": "string"
+                    }
+                },
+                    "required": [
+                        "productVersion",
+                        "custom"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "description": "Comment for struct ProductImageVersion",
+                    "properties": {
+                        "productVersion": {
+                            "description": "Comment for product_version field (same on both structs)",
+                            "type": "string"
+                        },
+                        "repo": {
+                            "description": "Comment for repo field",
+                            "nullable": true,
+                            "type": "string"
+                    }
+                },
+                    "required": [
+                        "productVersion"
+                    ],
+                    "type": "object"
+                }
+            ]
+        });
+
+        let expected_converted_schema_object_value = serde_json::json!({
+            "description": "Comment for untagged enum ProductImageSelection",
+            "type": "object",
+            "anyOf": [
+                {
+                    "required": [
+                        "custom",
+                        "productVersion"
+                    ]
+                },
+                {
+                    "required": [
+                        "productVersion"
+                    ]
+                }
+            ],
+            "properties": {
+                "custom": {
+                    "description": "Comment for custom field",
+                    "type": "string"
+                },
+                "productVersion": {
+                    "description": "Comment for product_version field (same on both structs)",
+                    "type": "string"
+                        },
+                "repo": {
+                    "description": "Comment for repo field",
+                    "nullable": true,
+                    "type": "string"
+                }
+            }
+
+        });
+
+        let original_schema_object: SchemaObject =
+            serde_json::from_value(original_schema_object_value).expect("valid JSON");
+        let expected_converted_schema_object: SchemaObject =
+            serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
+
+        let mut actual_converted_schema_object = original_schema_object.clone();
+        hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
+
+        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+    }
+
+    #[test]
+    #[should_panic(expected = "Properties for \"two\" are defined multiple times with different shapes")]
+    fn invalid_untagged_enum_with_conflicting_variant_fields_before_one_of_hosting() {
+        let original_schema_object_value = serde_json::json!({
+            "description": "An untagged enum with a nested enum inside",
+            "anyOf": [
+                {
+                    "description": "Used in case the `one` field is present",
+                    "type": "object",
+                    "required": [
+                        "one",
+                        "two"
+                    ],
+                    "properties": {
+                        "one": {
+                            "type": "string"
+                        },
+                        "two": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                {
+                    "description": "Used in case the `two` field is present",
+                    "type": "object",
+                    "required": [
+                        "two"
+                    ],
+                    "properties": {
+                        "two": {
+                            "description": "A very simple enum with unit variants",
+                            "oneOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "C",
+                                        "D"
+                                    ]
+                                },
+                                {
+                                    "description": "First variant doc-comment",
+                                    "type": "string",
+                                    "enum": [
+                                        "A"
+                                    ]
+                                },
+                                {
+                                    "description": "Second variant doc-comment",
+                                    "type": "string",
+                                    "enum": [
+                                        "B"
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "description": "Used in case no fields are present",
+                    "type": "object"
+                }
+            ]
+        });
+
+
+        let original_schema_object: SchemaObject =
+            serde_json::from_value(original_schema_object_value).expect("valid JSON");
+
+        let mut actual_converted_schema_object = original_schema_object.clone();
+        hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
+    }
+
+    #[test]
+    #[should_panic(expected = "Properties for \"two\" are defined multiple times with different shapes")]
+    fn invalid_untagged_enum_with_conflicting_variant_fields_after_one_of_hosting() {
+        // NOTE: the oneOf for the second variant has already been hoisted
+        let original_schema_object_value = serde_json::json!({
+            "description": "An untagged enum with a nested enum inside",
+            "anyOf": [
+                {
+                    "description": "Used in case the `one` field is present",
+                    "type": "object",
+                    "required": [
+                        "one",
+                        "two",
+                    ],
+                    "properties": {
+                        "one": {
+                            "type": "string"
+                        },
+                        "two": {
+                            "type": "string"
+                        }
+                    }
+                },
+                {
+                    "description": "Used in case the `two` field is present",
+                    "type": "object",
+                    "required": [
+                        "two"
+                    ],
+                    "properties": {
+                        "two": {
+                            "description": "A very simple enum with unit variants",
+                            "type": "string",
+                            "enum": [
+                                "C",
+                                "D",
+                                "A",
+                                "B"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "description": "Used in case no fields are present",
+                    "type": "object"
+                }
+            ]
+        });
+
+        let original_schema_object: SchemaObject =
+            serde_json::from_value(original_schema_object_value).expect("valid JSON");
+
+        let mut actual_converted_schema_object = original_schema_object.clone();
+        hoist_properties_for_any_of_subschemas(&mut actual_converted_schema_object);
     }
 }

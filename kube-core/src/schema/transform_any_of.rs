@@ -2,135 +2,6 @@ use std::ops::DerefMut;
 
 use crate::schema::{Schema, SchemaObject, SubschemaValidation};
 
-#[cfg(test)]
-#[test]
-fn optional_tagged_enum_with_unit_variants() {
-    let original_schema_object_value = serde_json::json!({
-        "anyOf": [
-            {
-                "description": "A very simple enum with empty variants",
-                "oneOf": [
-                    {
-                        "type": "string",
-                        "enum": [
-                            "C",
-                            "D"
-                        ]
-                    },
-                    {
-                        "description": "First variant doc-comment",
-                        "type": "string",
-                        "enum": [
-                        "A"
-                    ]
-                    },
-                    {
-                        "description": "Second variant doc-comment",
-                        "type": "string",
-                        "enum": [
-                            "B"
-                        ]
-                    }
-                ]
-            },
-            {
-                "enum": [
-                    null
-                ],
-                "nullable": true
-            }
-        ]
-    });
-
-    let expected_converted_schema_object_value = serde_json::json!({
-        "description": "A very simple enum with empty variants",
-        "nullable": true,
-        "oneOf": [
-            {
-                "type": "string",
-                "enum": [
-                    "C",
-                    "D"
-                ]
-            },
-            {
-                "description": "First variant doc-comment",
-                "type": "string",
-                "enum": [
-                "A"
-            ]
-            },
-            {
-                "description": "Second variant doc-comment",
-                "type": "string",
-                "enum": [
-                    "B"
-                ]
-            }
-        ]
-    });
-
-
-    let original_schema_object: SchemaObject =
-        serde_json::from_value(original_schema_object_value).expect("valid JSON");
-    let expected_converted_schema_object: SchemaObject =
-        serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
-
-    let mut actual_converted_schema_object = original_schema_object.clone();
-    hoist_any_of_subschema_with_a_nullable_variant(&mut actual_converted_schema_object);
-
-    assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
-}
-
-#[cfg(test)]
-#[test]
-fn optional_tagged_enum_with_unit_variants_but_also_an_existing_description() {
-    let original_schema_object_value = serde_json::json!({
-        "description": "This comment will be lost",
-        "anyOf": [
-            {
-                "description": "A very simple enum with empty variants",
-                "type": "string",
-                "enum": [
-                    "C",
-                    "D",
-                    "A",
-                    "B"
-                ]
-            },
-            {
-                "enum": [
-                    null
-                ],
-                "nullable": true
-            }
-        ]
-    });
-
-    let expected_converted_schema_object_value = serde_json::json!({
-        "description": "A very simple enum with empty variants",
-        "nullable": true,
-        "type": "string",
-        "enum": [
-            "C",
-            "D",
-            "A",
-            "B"
-        ]
-    });
-
-
-    let original_schema_object: SchemaObject =
-        serde_json::from_value(original_schema_object_value).expect("valid JSON");
-    let expected_converted_schema_object: SchemaObject =
-        serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
-
-    let mut actual_converted_schema_object = original_schema_object.clone();
-    hoist_any_of_subschema_with_a_nullable_variant(&mut actual_converted_schema_object);
-
-    assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
-}
-
 /// Replace the schema with the anyOf subschema and set to nullable when the
 /// only other subschema is the nullable entry.
 ///
@@ -215,4 +86,136 @@ pub(crate) fn hoist_any_of_subschema_with_a_nullable_variant(kube_schema: &mut S
 
     // Set the schema to nullable (as we know we matched the null variant earlier)
     kube_schema.extensions.insert("nullable".to_owned(), true.into());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn optional_tagged_enum_with_unit_variants() {
+        let original_schema_object_value = serde_json::json!({
+            "anyOf": [
+                {
+                    "description": "A very simple enum with empty variants",
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "enum": [
+                                "C",
+                                "D"
+                            ]
+                        },
+                        {
+                            "description": "First variant doc-comment",
+                            "type": "string",
+                            "enum": [
+                            "A"
+                        ]
+                        },
+                        {
+                            "description": "Second variant doc-comment",
+                            "type": "string",
+                            "enum": [
+                                "B"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "enum": [
+                        null
+                    ],
+                    "nullable": true
+                }
+            ]
+        });
+
+        let expected_converted_schema_object_value = serde_json::json!({
+            "description": "A very simple enum with empty variants",
+            "nullable": true,
+            "oneOf": [
+                {
+                    "type": "string",
+                    "enum": [
+                        "C",
+                        "D"
+                    ]
+                },
+                {
+                    "description": "First variant doc-comment",
+                    "type": "string",
+                    "enum": [
+                    "A"
+                ]
+                },
+                {
+                    "description": "Second variant doc-comment",
+                    "type": "string",
+                    "enum": [
+                        "B"
+                    ]
+                }
+            ]
+        });
+
+
+        let original_schema_object: SchemaObject =
+            serde_json::from_value(original_schema_object_value).expect("valid JSON");
+        let expected_converted_schema_object: SchemaObject =
+            serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
+
+        let mut actual_converted_schema_object = original_schema_object.clone();
+        hoist_any_of_subschema_with_a_nullable_variant(&mut actual_converted_schema_object);
+
+        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+    }
+
+    #[test]
+    fn optional_tagged_enum_with_unit_variants_but_also_an_existing_description() {
+        let original_schema_object_value = serde_json::json!({
+            "description": "This comment will be lost",
+            "anyOf": [
+                {
+                    "description": "A very simple enum with empty variants",
+                    "type": "string",
+                    "enum": [
+                        "C",
+                        "D",
+                        "A",
+                        "B"
+                    ]
+                },
+                {
+                    "enum": [
+                        null
+                    ],
+                    "nullable": true
+                }
+            ]
+        });
+
+        let expected_converted_schema_object_value = serde_json::json!({
+            "description": "A very simple enum with empty variants",
+            "nullable": true,
+            "type": "string",
+            "enum": [
+                "C",
+                "D",
+                "A",
+                "B"
+            ]
+        });
+
+
+        let original_schema_object: SchemaObject =
+            serde_json::from_value(original_schema_object_value).expect("valid JSON");
+        let expected_converted_schema_object: SchemaObject =
+            serde_json::from_value(expected_converted_schema_object_value).expect("valid JSON");
+
+        let mut actual_converted_schema_object = original_schema_object.clone();
+        hoist_any_of_subschema_with_a_nullable_variant(&mut actual_converted_schema_object);
+
+        assert_json_diff::assert_json_eq!(actual_converted_schema_object, expected_converted_schema_object);
+    }
 }
