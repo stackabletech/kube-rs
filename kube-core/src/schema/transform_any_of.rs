@@ -26,7 +26,7 @@ pub(crate) fn hoist_any_of_subschema_with_a_nullable_variant(kube_schema: &mut S
 
     let SubschemaValidation {
         any_of: Some(any_of),
-        one_of,
+        one_of: None,
     } = subschemas.deref_mut()
     else {
         return;
@@ -59,11 +59,6 @@ pub(crate) fn hoist_any_of_subschema_with_a_nullable_variant(kube_schema: &mut S
     let Schema::Object(to_hoist) = subschema_to_hoist else {
         panic!("the non-null anyOf subschema is a bool. That is not expected here");
     };
-
-    // There should not be any oneOf's adjacent to the anyOf
-    if one_of.is_some() {
-        panic!("oneOf is set when there is already an anyOf: {one_of:#?}");
-    }
 
     let mut to_hoist = to_hoist.clone();
     let kube_schema_metadata = kube_schema.metadata.take();

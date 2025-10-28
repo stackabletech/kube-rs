@@ -28,7 +28,8 @@ pub(crate) fn hoist_one_of_enum_with_unit_variants(kube_schema: &mut SchemaObjec
     };
 
     let SubschemaValidation {
-        one_of: Some(one_of), ..
+        any_of: None,
+        one_of: Some(one_of),
     } = subschemas.deref_mut()
     else {
         return;
