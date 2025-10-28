@@ -98,8 +98,8 @@ mod tests {
                             "description": "First variant doc-comment",
                             "type": "string",
                             "enum": [
-                            "A"
-                        ]
+                                "A"
+                            ]
                         },
                         {
                             "description": "Second variant doc-comment",

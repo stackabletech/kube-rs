@@ -2,9 +2,12 @@ use serde_json::Value;
 
 use super::SchemaObject;
 
-/// A Option<Enum> without any descriptions has `nullable` set to `true` as well as a trailing
-/// `null` enum variant. We remove the trailing enum variant as it's not needed for Kubernetes and
-/// makes the CRD more compact by removing duplicated information.
+/// Drop trailing null on optional enums.
+///
+/// The nullability is already indicated when "nullable" is set to true.
+///
+/// NOTE: The trailing null is removed because it's not needed by Kubernetes
+/// and makes the CRD more compact by removing redundant information.
 pub(crate) fn remove_optional_enum_null_variant(kube_schema: &mut SchemaObject) {
     let SchemaObject {
         enum_values: Some(enum_values),
@@ -15,14 +18,11 @@ pub(crate) fn remove_optional_enum_null_variant(kube_schema: &mut SchemaObject) 
         return;
     };
 
-    // It only makes sense to remove `null` enum values in case the enum is nullable (thus optional)
-    // This is a safety mechanism, "nullable" should always be set to true, if one enum variant is
-    // null.
+    // For added safety, check nullability. It should always be true when there is a null variant.
     if let Some(Value::Bool(true)) = extensions.get("nullable") {
-        // Don't remove the single last enum variant. This often happens for `Option<XXX>`, which is
-        // represented as `"anyOf": [XXX, {"enum": [null], "optional": true}]`.
-        // We need to keep `"enum": [null]` (as opposed to `"enum": []`), because other hoisting
-        // code uses `kube::core::NULL_SCHEMA` to detect null variants.
+        // Don't drop the null entry if it is the only thing in the enum.
+        // This is because other hoisting code depends on `kube::core::NULL_SCHEMA` to detect null
+        // variants.
         if enum_values.len() > 1 {
             enum_values.retain(|enum_value| enum_value != &Value::Null);
         }
