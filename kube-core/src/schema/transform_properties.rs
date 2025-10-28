@@ -1,4 +1,4 @@
-use crate::schema::{InstanceType, Schema, SchemaObject, SingleOrVec, NULL_SCHEMA};
+use crate::schema::{InstanceType, Metadata, Schema, SchemaObject, SingleOrVec, NULL_SCHEMA};
 
 /// Take oneOf or anyOf subschema properties and move them them into the schema
 /// properties.
@@ -61,13 +61,13 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
         .collect::<Vec<_>>();
 
     for subschema in subschemas {
-        // This will clear out any objects that don't have required/properties fields (so that it
-        // appears as: {}).
-        let metadata = subschema.metadata.take();
+        // Drop the "type" field on subschema. It needs to be set to "object" on the schema.
         subschema.instance_type.take();
-
-        // Set the schema type to object
         kube_schema.instance_type = Some(SingleOrVec::Single(Box::new(InstanceType::Object)));
+
+        // Take the description (which will be preserved for tagged enums further down).
+        // This (along with the dropping of the "type" above) will allow for empty variants ({}).
+        let subschema_metadata = subschema.metadata.take();
 
         if let Some(object) = subschema.object.as_deref_mut() {
             // Kubernetes doesn't allow variants to set additionalProperties
@@ -75,12 +75,12 @@ pub(crate) fn hoist_properties_for_any_of_subschemas(kube_schema: &mut SchemaObj
 
             // For a tagged enum (oneOf), we need to preserve the variant description
             if preserve_description {
-                if let Some(Schema::Object(subschema)) = object.properties.values_mut().next() {
+                if let Some(Schema::Object(property_schema)) = object.properties.values_mut().next() {
                     if let Some(Metadata {
                         description: Some(_), ..
-                    }) = metadata.as_deref()
+                    }) = subschema_metadata.as_deref()
                     {
-                        subschema.metadata = metadata
+                        property_schema.metadata = subschema_metadata
                     }
                 };
             }
